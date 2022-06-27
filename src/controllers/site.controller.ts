@@ -19,6 +19,7 @@ import {
 } from '@loopback/rest';
 import {Marsmodel} from '../models';
 import {MarsmodelRepository} from '../repositories';
+const { encrypt, decrypt } = require('./crypto');
 
 export class SiteController {
   constructor(
@@ -36,7 +37,7 @@ export class SiteController {
       content: {
         'application/json': {
           schema: getModelSchemaRef(Marsmodel, {
-            title: 'NewMarsmodel',
+            title: 'New Mars Controller',
             
           }),
         },
@@ -44,6 +45,8 @@ export class SiteController {
     })
     marsmodel: Marsmodel,
   ): Promise<Marsmodel> {
+    marsmodel.loginpwd = encrypt(marsmodel.loginpwd);
+
     return this.marsmodelRepository.create(marsmodel);
   }
 
