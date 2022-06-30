@@ -33,6 +33,11 @@ export class Marsmodel extends Entity {
   })
   desc?: string;
 
+  @property({
+    type: 'boolean',
+    default: false,
+  })
+  status?: boolean;
 
   constructor(data?: Partial<Marsmodel>) {
     super(data);

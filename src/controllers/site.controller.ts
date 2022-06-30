@@ -16,10 +16,21 @@ import {
   del,
   requestBody,
   response,
+  HttpErrors
 } from '@loopback/rest';
 import {Marsmodel} from '../models';
 import {MarsmodelRepository} from '../repositories';
 const { encrypt, decrypt } = require('./crypto');
+const isIp = require('is-ip');
+
+class CustomHttpError extends Error {
+  statusCode: number
+
+  constructor(status: number, message: string) {
+    super(message)
+    this.statusCode = status
+  }
+}
 
 export class SiteController {
   constructor(
@@ -45,6 +56,12 @@ export class SiteController {
     })
     marsmodel: Marsmodel,
   ): Promise<Marsmodel> {
+
+    if (!isIp.v4(marsmodel.ip) && !isIp.v6(marsmodel.ip)) {
+       throw new CustomHttpError(400, 'Invalid IP address.');
+    }
+
+    marsmodel.status = false;
     marsmodel.loginpwd = encrypt(marsmodel.loginpwd);
 
     return this.marsmodelRepository.create(marsmodel);
