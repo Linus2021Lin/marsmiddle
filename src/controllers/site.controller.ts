@@ -112,6 +112,13 @@ export class SiteController {
     marsmodel: Marsmodel,
     @param.where(Marsmodel) where?: Where<Marsmodel>,
   ): Promise<Count> {
+
+    if (!isIp.v4(marsmodel.ip) && !isIp.v6(marsmodel.ip)) {
+       throw new CustomHttpError(400, 'Invalid IP address.');
+    }
+
+    marsmodel.status = false;
+
     return this.marsmodelRepository.updateAll(marsmodel, where);
   }
 
@@ -146,6 +153,11 @@ export class SiteController {
     })
     marsmodel: Marsmodel,
   ): Promise<void> {
+    if (!isIp.v4(marsmodel.ip) && !isIp.v6(marsmodel.ip)) {
+       throw new CustomHttpError(400, 'Invalid IP address.');
+    }
+
+    marsmodel.status = false;
     await this.marsmodelRepository.updateById(id, marsmodel);
   }
 
@@ -157,6 +169,12 @@ export class SiteController {
     @param.path.string('id') id: string,
     @requestBody() marsmodel: Marsmodel,
   ): Promise<void> {
+
+    if (!isIp.v4(marsmodel.ip) && !isIp.v6(marsmodel.ip)) {
+       throw new CustomHttpError(400, 'Invalid IP address.');
+    }
+
+    marsmodel.status = false;
     await this.marsmodelRepository.replaceById(id, marsmodel);
   }
 
