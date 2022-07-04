@@ -65,29 +65,36 @@ export class SiteController {
 
     marsmodel.status = false;
     //https://210.63.204.29/mars/useraccount/v1/login
-    var request = http.request({'host': marsmodel.ip,
+    try {
+       let response = await new Promise ((resolve, reject) => {
+           let req = http.request({'host': marsmodel.ip,
               'port': 80,
               'path':'/mars/useraccount/v1/login',
               'method': 'POST',
+              'timeout': 3000,
               'headers': {'Content-Type': 'application/json', 'Accept': 'application/json'}
-              },
-              function(res:any) {
-                  res.setEncoding('utf8');
-                  res.on('data', function (chunk:any) {
-                      if (res.statusCode >= 200 ||res.statusCode <= 299) {
-                          marsmodel.status = true;
-                          //console.log('success');
-                      } else {
-                          marsmodel.status = false;
-                          //console.log('Response: ' + chunk);
-                      }
-                  });
               });
+           req.on('response', (res:any) => {
+               if (res.statusCode == 200) {
+                   //console.log( "response success");
+                   marsmodel.status = true;
+               }
+               resolve(res)
+           });
+           req.on('error', (err:any) => {
+               reject(err)
+           });
+           req.on('timeout', () => {
+               req.destroy();
+           });
+           req.write(JSON.stringify({user_name: marsmodel.loginacc, password: marsmodel.loginpwd}));
+           req.end();
+      });
 
-    let post_data = JSON.stringify({user_name: marsmodel.loginacc, password: marsmodel.loginpwd});
-    await request.write(post_data);
-    request.end();
-
+    } catch (err) {
+        console.log("await http request error IP:" + marsmodel.ip);
+    }
+    //console.log ("write to db");
     marsmodel.loginpwd = encrypt(marsmodel.loginpwd);
     return this.marsmodelRepository.create(marsmodel);
   }
