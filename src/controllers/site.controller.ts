@@ -33,6 +33,28 @@ class CustomHttpError extends Error {
     this.statusCode = status
   }
 }
+function checkIPconnectivity(marsmodel:Marsmodel) {
+       return new Promise ((resolve, reject) => {
+           let req = http.request({'host': marsmodel.ip,
+              'port': 80,
+              'path':'/mars/useraccount/v1/login',
+              'method': 'POST',
+              'timeout': 3000,
+              'headers': {'Content-Type': 'application/json', 'Accept': 'application/json'}
+              });
+           req.on('response', (res:any) => {
+               resolve(res);
+           });
+           req.on('error', (err:any) => {
+               reject(err);
+           });
+           req.on('timeout', () => {
+               req.destroy();
+           });
+           req.write(JSON.stringify({user_name: marsmodel.loginacc, password: marsmodel.loginpwd}));
+           req.end();
+      });
+}
 
 export class SiteController {
   constructor(
@@ -64,35 +86,15 @@ export class SiteController {
     }
 
     marsmodel.status = false;
-    //https://210.63.204.29/mars/useraccount/v1/login
-    try {
-       let response = await new Promise ((resolve, reject) => {
-           let req = http.request({'host': marsmodel.ip,
-              'port': 80,
-              'path':'/mars/useraccount/v1/login',
-              'method': 'POST',
-              'timeout': 3000,
-              'headers': {'Content-Type': 'application/json', 'Accept': 'application/json'}
-              });
-           req.on('response', (res:any) => {
-               if (res.statusCode == 200) {
-                   //console.log( "response success");
-                   marsmodel.status = true;
-               }
-               resolve(res)
-           });
-           req.on('error', (err:any) => {
-               reject(err)
-           });
-           req.on('timeout', () => {
-               req.destroy();
-           });
-           req.write(JSON.stringify({user_name: marsmodel.loginacc, password: marsmodel.loginpwd}));
-           req.end();
-      });
 
+    try {
+        let res:any = await checkIPconnectivity(marsmodel);
+        if (res.statusCode == 200) {
+           //console.log( "response success");
+           marsmodel.status = true;
+        }
     } catch (err) {
-        console.log("await http request error IP:" + marsmodel.ip);
+        console.log("http request error name:" + marsmodel.name +", IP:" + marsmodel.ip);
     }
     //console.log ("write to db");
     marsmodel.loginpwd = encrypt(marsmodel.loginpwd);
@@ -150,7 +152,16 @@ export class SiteController {
     }
 
     marsmodel.status = false;
-
+    try {
+        let res:any = await checkIPconnectivity(marsmodel);
+        if (res.statusCode == 200) {
+           //console.log( "response success");
+           marsmodel.status = true;
+        }
+    } catch (err) {
+        console.log("http request error name:" + marsmodel.name +", IP:" + marsmodel.ip);
+    }
+    marsmodel.loginpwd = encrypt(marsmodel.loginpwd);
     return this.marsmodelRepository.updateAll(marsmodel, where);
   }
 
@@ -190,6 +201,16 @@ export class SiteController {
     }
 
     marsmodel.status = false;
+    try {
+        let res:any = await checkIPconnectivity(marsmodel);
+        if (res.statusCode == 200) {
+           //console.log( "response success");
+           marsmodel.status = true;
+        }
+    } catch (err) {
+        console.log("http request error name:" + marsmodel.name +", IP:" + marsmodel.ip);
+    }
+    marsmodel.loginpwd = encrypt(marsmodel.loginpwd);
     await this.marsmodelRepository.updateById(id, marsmodel);
   }
 
@@ -207,6 +228,16 @@ export class SiteController {
     }
 
     marsmodel.status = false;
+    try {
+        let res:any = await checkIPconnectivity(marsmodel);
+        if (res.statusCode == 200) {
+           //console.log( "response success");
+           marsmodel.status = true;
+        }
+    } catch (err) {
+        console.log("http request error name:" + marsmodel.name +", IP:" + marsmodel.ip);
+    }
+    marsmodel.loginpwd = encrypt(marsmodel.loginpwd);
     await this.marsmodelRepository.replaceById(id, marsmodel);
   }
 
