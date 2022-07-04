@@ -22,6 +22,8 @@ import {Marsmodel} from '../models';
 import {MarsmodelRepository} from '../repositories';
 const { encrypt, decrypt } = require('./crypto');
 const isIp = require('is-ip');
+const http = require('http');
+var querystring = require('querystring');
 
 class CustomHttpError extends Error {
   statusCode: number
@@ -62,8 +64,31 @@ export class SiteController {
     }
 
     marsmodel.status = false;
-    marsmodel.loginpwd = encrypt(marsmodel.loginpwd);
+    //https://210.63.204.29/mars/useraccount/v1/login
+    var request = http.request({'host': marsmodel.ip,
+              'port': 80,
+              'path':'/mars/useraccount/v1/login',
+              'method': 'POST',
+              'headers': {'Content-Type': 'application/json', 'Accept': 'application/json'}
+              },
+              function(res:any) {
+                  res.setEncoding('utf8');
+                  res.on('data', function (chunk:any) {
+                      if (res.statusCode >= 200 ||res.statusCode <= 299) {
+                          marsmodel.status = true;
+                          //console.log('success');
+                      } else {
+                          marsmodel.status = false;
+                          //console.log('Response: ' + chunk);
+                      }
+                  });
+              });
 
+    let post_data = JSON.stringify({user_name: marsmodel.loginacc, password: marsmodel.loginpwd});
+    await request.write(post_data);
+    request.end();
+
+    marsmodel.loginpwd = encrypt(marsmodel.loginpwd);
     return this.marsmodelRepository.create(marsmodel);
   }
 
