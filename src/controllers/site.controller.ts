@@ -92,11 +92,12 @@ export class SiteController {
         if (res.statusCode == 200) {
            //console.log( "response success");
            marsmodel.status = true;
+           this.marsmodelRepository.updateById(marsmodel.name, marsmodel);
         }
     } catch (err) {
         console.log("http request error name:" + marsmodel.name +", IP:" + marsmodel.ip);
     }
-    //console.log ("write to db");
+
     marsmodel.loginpwd = encrypt(marsmodel.loginpwd);
     return this.marsmodelRepository.create(marsmodel);
   }
