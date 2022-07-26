@@ -33,8 +33,9 @@ class CustomHttpError extends Error {
     this.statusCode = status
   }
 }
-function checkIPconnectivity(marsmodel:Marsmodel) {
+function checkIPconnectivity(marsmodel:Marsmodel, password?: String) {
        return new Promise ((resolve, reject) => {
+           let pass = typeof password != 'undefined' ? password: marsmodel.loginpwd;
            let req = http.request({'host': marsmodel.ip,
               'port': 80,
               'path':'/mars/useraccount/v1/login',
@@ -51,7 +52,7 @@ function checkIPconnectivity(marsmodel:Marsmodel) {
            req.on('timeout', () => {
                req.destroy();
            });
-           req.write(JSON.stringify({user_name: marsmodel.loginacc, password: marsmodel.loginpwd}));
+           req.write(JSON.stringify({user_name: marsmodel.loginacc, password: pass}));
            req.end();
       });
 }
@@ -133,8 +134,12 @@ function gertCurrentTimestamp(plus: number): String {
 
 async function getCpuRam(marsmodel: Marsmodel) {
     try {
-        marsmodel.loginpwd = decrypt(marsmodel.loginpwd);
-        let res:any = await checkIPconnectivity(marsmodel); //Class: http.IncomingMessage
+        marsmodel.status = false;
+        marsmodel.cpuIdle = 0;
+        marsmodel.ramUsage = 0;
+        //decode apssword
+        let loginpwd = decrypt(marsmodel.loginpwd);
+        let res:any = await checkIPconnectivity(marsmodel, loginpwd); //Class: http.IncomingMessage
         if (res.statusCode == 200) {
            marsmodel.status = true;
            //console.log( "response success " + res.headers["mars_g_session_id"]);
