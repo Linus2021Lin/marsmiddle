@@ -131,6 +131,46 @@ function gertCurrentTimestamp(plus: number): String {
     return dateDisply;
 }
 
+async function getCpuRam(marsmodel: Marsmodel) {
+    try {
+        marsmodel.loginpwd = decrypt(marsmodel.loginpwd);
+        let res:any = await checkIPconnectivity(marsmodel); //Class: http.IncomingMessage
+        if (res.statusCode == 200) {
+           marsmodel.status = true;
+           //console.log( "response success " + res.headers["mars_g_session_id"]);
+           let resCpu:any = await getCpuUsage(marsmodel.ip, res.headers["mars_g_session_id"], gertCurrentTimestamp(-60), gertCurrentTimestamp(0));
+           let cpu:any = JSON.parse(resCpu.toString());
+           if (cpu.cpu.length != 0) {
+               //console.log(cpu.cpu[0].resources);
+               if(cpu.cpu[0].resources.length != 0) {
+                   //console.log("result: " + cpu.cpu[0].resources[0].idle_percent);
+                   marsmodel.cpuIdle = cpu.cpu[0].resources[0].idle_percent;
+               } else {
+                   marsmodel.cpuIdle = 0;
+               }
+           } else {
+               marsmodel.cpuIdle = 0;
+           }
+           let resRam:any = await getRamUsage(marsmodel.ip, res.headers["mars_g_session_id"], gertCurrentTimestamp(-60), gertCurrentTimestamp(0));
+           let mem:any = JSON.parse(resRam.toString());
+           if (mem.memory.length != 0) {
+               //console.log(mem.memory[0].resources);
+               if(mem.memory[0].resources.length != 0) {
+                   //console.log("result: " + mem.memory[0].resources[0].used_percent);
+                   marsmodel.ramUsage = mem.memory[0].resources[0].used_percent;
+               } else {
+                   marsmodel.ramUsage = 0;
+               }
+           } else {
+               marsmodel.ramUsage = 0;
+           }
+        }
+    } catch (err) {
+        console.log("http request error name:" + marsmodel.name +", IP:" + marsmodel.ip + ", loginacc: " + marsmodel.loginacc + ", loginpwd: " +marsmodel.loginpwd + ", status:"+err);
+    }
+    return marsmodel;
+}
+
 export class SiteController {
   constructor(
     @repository(MarsmodelRepository)
@@ -203,7 +243,30 @@ export class SiteController {
   async find(
     @param.filter(Marsmodel) filter?: Filter<Marsmodel>,
   ): Promise<Marsmodel[]> {
-    return this.marsmodelRepository.find(filter);
+    let marsmodel: Marsmodel[] = await this.marsmodelRepository.find(filter);
+
+    for (const i in marsmodel) {
+        marsmodel[i] = await getCpuRam(marsmodel[i]);
+    }
+
+    return marsmodel;
+  }
+
+  @get('/marsmiddle/{id}')
+  @response(200, {
+    description: 'Marsmodel model instance',
+    content: {
+      'application/json': {
+        schema: getModelSchemaRef(Marsmodel, {includeRelations: true}),
+      },
+    },
+  })
+  async findById(
+    @param.path.string('id') id: string,
+    @param.filter(Marsmodel, {exclude: 'where'}) filter?: FilterExcludingWhere<Marsmodel>
+  ): Promise<Marsmodel> {
+    let marsmodel: Marsmodel = await this.marsmodelRepository.findById(id, filter);
+    return getCpuRam(marsmodel);
   }
 
   @patch('/marsmiddle')
@@ -239,57 +302,6 @@ export class SiteController {
     }
     marsmodel.loginpwd = encrypt(marsmodel.loginpwd);
     return this.marsmodelRepository.updateAll(marsmodel, where);
-  }
-
-  @get('/marsmiddle/{id}')
-  @response(200, {
-    description: 'Marsmodel model instance',
-    content: {
-      'application/json': {
-        schema: getModelSchemaRef(Marsmodel, {includeRelations: true}),
-      },
-    },
-  })
-  async findById(
-    @param.path.string('id') id: string,
-    @param.filter(Marsmodel, {exclude: 'where'}) filter?: FilterExcludingWhere<Marsmodel>
-  ): Promise<Marsmodel> {
-    let marsmodel: Marsmodel = await this.marsmodelRepository.findById(id, filter);
-
-    try {
-        marsmodel.loginpwd = decrypt(marsmodel.loginpwd);
-        let res:any = await checkIPconnectivity(marsmodel); //Class: http.IncomingMessage
-        if (res.statusCode == 200) {
-           marsmodel.status = true;
-           //console.log( "response success " + res.headers["mars_g_session_id"]);
-           let resCpu:any = await getCpuUsage(marsmodel.ip, res.headers["mars_g_session_id"], gertCurrentTimestamp(-60), gertCurrentTimestamp(0));
-           let cpu:any = JSON.parse(resCpu.toString());
-           if (cpu.cpu.length != 0) {
-               //console.log(cpu.cpu[0].resources);
-               if(cpu.cpu[0].resources.length != 0) {
-                   //console.log("result: " + cpu.cpu[0].resources[0].idle_percent);
-                   marsmodel.cpuIdle = cpu.cpu[0].resources[0].idle_percent;
-               } else {
-                   marsmodel.cpuIdle = 0;
-               }
-           }
-           let resRam:any = await getRamUsage(marsmodel.ip, res.headers["mars_g_session_id"], gertCurrentTimestamp(-60), gertCurrentTimestamp(0));
-           let mem:any = JSON.parse(resRam.toString());
-           if (mem.memory.length != 0) {
-               //console.log(mem.memory[0].resources);
-               if(mem.memory[0].resources.length != 0) {
-                   //console.log("result: " + mem.memory[0].resources[0].used_percent);
-                   marsmodel.ramUsage = mem.memory[0].resources[0].used_percent;
-               } else {
-                   marsmodel.ramUsage = 0;
-               }
-           }
-        }
-    } catch (err) {
-        console.log("http request error name:" + marsmodel.name +", IP:" + marsmodel.ip + ", loginacc: " + marsmodel.loginacc + ", loginpwd: " +marsmodel.loginpwd + ", status:"+err);
-    }
-
-    return marsmodel;
   }
 
   @patch('/marsmiddle/{id}')
