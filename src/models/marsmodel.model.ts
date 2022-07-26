@@ -39,6 +39,18 @@ export class Marsmodel extends Entity {
   })
   status?: boolean;
 
+  @property({
+    type: 'string',
+    required: false,
+  })
+  cpuIdle: number;
+
+  @property({
+    type: 'string',
+    required: false,
+  })
+  ramUsage: number;
+
   constructor(data?: Partial<Marsmodel>) {
     super(data);
   }

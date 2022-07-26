@@ -56,6 +56,81 @@ function checkIPconnectivity(marsmodel:Marsmodel) {
       });
 }
 
+//curl -XGET -H "Cookie: marsGSessionId=af682fea-389a-4f1b-b1a9-ee1ed4e4deb7" http://210.63.204.28:8181/mars/analyzer/v1/timerangebar_all/ctrl/cpu/2022-07-25T08:19:00Z/2022-07-25T08:19:30Z/30
+function getCpuUsage(ip:String, token: String, time1: String, time2: String) {
+       return new Promise ((resolve, reject) => {
+           let req = http.request({'host': ip,
+              'port': 8181,
+              'path':'/mars/analyzer/v1/timerangebar_all/ctrl/cpu/' + time1 + '\/' + time2 + '/30',
+              'method': 'GET',
+              'timeout': 3000,
+              'headers': {'Cookie': 'marsGSessionId=' + token }
+              }, (res:any) => {
+                 if (res.statusCode < 200 || res.statusCode >= 300) {
+                       return reject(new Error('statusCode=' + res.statusCode));
+                 }
+                 res.on('data', (data:any) => {
+                    resolve(data);
+                 });
+              });
+           req.on('error', (err:any) => {
+               reject(err);
+           });
+           req.on('timeout', () => {
+               req.destroy();
+           });
+           req.end();
+      });
+}
+
+function getRamUsage(ip:String, token: String, time1: String, time2: String) {
+       return new Promise ((resolve, reject) => {
+           let req = http.request({'host': ip,
+              'port': 8181,
+              'path':'/mars/analyzer/v1/timerangebar_all/ctrl/memory/' + time1 + '\/' + time2 + '/30',
+              'method': 'GET',
+              'timeout': 3000,
+              'headers': {'Cookie': 'marsGSessionId=' + token }
+              }, (res:any) => {
+                    if (res.statusCode < 200 || res.statusCode >= 300) {
+                          return reject(new Error('statusCode=' + res.statusCode));
+                    }
+                    res.on('data', (data:any) => {
+                       try {
+                           resolve(data);
+                       } catch(e) {
+                           reject(e);
+                       }
+                    });
+              });
+           req.on('error', (err:any) => {
+               reject(err);
+           });
+           req.on('timeout', () => {
+               req.destroy();
+           });
+           req.end();
+      });
+}
+function IntTwoChars(i:number) {
+    return (`0${i}`).slice(-2);
+}
+
+function gertCurrentTimestamp(plus: number): String {
+    let ts = Date.now() + plus*1000; //plus convert to seconds
+    let date_ob = new Date(ts);
+    let date = IntTwoChars(date_ob.getDate());
+    let month = IntTwoChars(date_ob.getMonth() + 1);
+    let year = date_ob.getFullYear();
+    let hours = IntTwoChars(date_ob.getHours());
+    let minutes = IntTwoChars(date_ob.getMinutes());
+    let seconds = IntTwoChars(date_ob.getSeconds());
+    // prints date & time in 2022-07-25T08:19:00Z
+    let dateDisply = year + "-" + month + "-" + date + "T" + hours + ":" + minutes + ":" + seconds + "Z";
+    //console.log(dateDisply);
+    return dateDisply;
+}
+
 export class SiteController {
   constructor(
     @repository(MarsmodelRepository)
@@ -88,7 +163,7 @@ export class SiteController {
     marsmodel.status = false;
 
     try {
-        let res:any = await checkIPconnectivity(marsmodel);
+        let res:any = checkIPconnectivity(marsmodel);
         if (res.statusCode == 200) {
            //console.log( "response success");
            marsmodel.status = true;
@@ -179,7 +254,42 @@ export class SiteController {
     @param.path.string('id') id: string,
     @param.filter(Marsmodel, {exclude: 'where'}) filter?: FilterExcludingWhere<Marsmodel>
   ): Promise<Marsmodel> {
-    return this.marsmodelRepository.findById(id, filter);
+    let marsmodel: Marsmodel = await this.marsmodelRepository.findById(id, filter);
+
+    try {
+        marsmodel.loginpwd = decrypt(marsmodel.loginpwd);
+        let res:any = await checkIPconnectivity(marsmodel); //Class: http.IncomingMessage
+        if (res.statusCode == 200) {
+           marsmodel.status = true;
+           //console.log( "response success " + res.headers["mars_g_session_id"]);
+           let resCpu:any = await getCpuUsage(marsmodel.ip, res.headers["mars_g_session_id"], gertCurrentTimestamp(-60), gertCurrentTimestamp(0));
+           let cpu:any = JSON.parse(resCpu.toString());
+           if (cpu.cpu.length != 0) {
+               //console.log(cpu.cpu[0].resources);
+               if(cpu.cpu[0].resources.length != 0) {
+                   //console.log("result: " + cpu.cpu[0].resources[0].idle_percent);
+                   marsmodel.cpuIdle = cpu.cpu[0].resources[0].idle_percent;
+               } else {
+                   marsmodel.cpuIdle = 0;
+               }
+           }
+           let resRam:any = await getRamUsage(marsmodel.ip, res.headers["mars_g_session_id"], gertCurrentTimestamp(-60), gertCurrentTimestamp(0));
+           let mem:any = JSON.parse(resRam.toString());
+           if (mem.memory.length != 0) {
+               //console.log(mem.memory[0].resources);
+               if(mem.memory[0].resources.length != 0) {
+                   //console.log("result: " + mem.memory[0].resources[0].used_percent);
+                   marsmodel.ramUsage = mem.memory[0].resources[0].used_percent;
+               } else {
+                   marsmodel.ramUsage = 0;
+               }
+           }
+        }
+    } catch (err) {
+        console.log("http request error name:" + marsmodel.name +", IP:" + marsmodel.ip + ", loginacc: " + marsmodel.loginacc + ", loginpwd: " +marsmodel.loginpwd + ", status:"+err);
+    }
+
+    return marsmodel;
   }
 
   @patch('/marsmiddle/{id}')
