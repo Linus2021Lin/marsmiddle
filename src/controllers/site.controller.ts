@@ -128,18 +128,16 @@ function getPath(ip: String, token: String, path:String) {
               'timeout': 3000,
               'headers': {'Cookie': 'marsGSessionId=' + token }
               }, (res:any) => {
-                    if (res.statusCode < 200 || res.statusCode >= 300) {
-                          console.log("fail");
-                          return reject(new Error('statusCode=' + res.statusCode));
+                    if (res.statusCode >= 200 || res.statusCode < 300) {
+                        res.on('data', (data:any) => {
+                           //console.log(JSON.parse(data));
+                           try {
+                               resolve(data);
+                           } catch(e) {
+                               reject(e);
+                           }
+                        });
                     }
-                    res.on('data', (data:any) => {
-                       //console.log(JSON.parse(data));
-                       try {
-                           resolve(data);
-                       } catch(e) {
-                           reject(e);
-                       }
-                    });
               });
            req.on('error', (err:any) => {
                reject(err);
