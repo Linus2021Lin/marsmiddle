@@ -57,62 +57,6 @@ function checkIPconnectivity(marsmodel:Marsmodel, password?: String) {
       });
 }
 
-//curl -XGET -H "Cookie: marsGSessionId=af682fea-389a-4f1b-b1a9-ee1ed4e4deb7" http://210.63.204.28:8181/mars/analyzer/v1/timerangebar_all/ctrl/cpu/2022-07-25T08:19:00Z/2022-07-25T08:19:30Z/30
-function getCpuUsage(ip:String, token: String, time1: String, time2: String) {
-       return new Promise ((resolve, reject) => {
-           let req = http.request({'host': ip,
-              'port': 8181,
-              'path':'/mars/analyzer/v1/timerangebar_all/ctrl/cpu/' + time1 + '\/' + time2 + '/30',
-              'method': 'GET',
-              'timeout': 3000,
-              'headers': {'Cookie': 'marsGSessionId=' + token }
-              }, (res:any) => {
-                 if (res.statusCode < 200 || res.statusCode >= 300) {
-                       return reject(new Error('statusCode=' + res.statusCode));
-                 }
-                 res.on('data', (data:any) => {
-                    resolve(data);
-                 });
-              });
-           req.on('error', (err:any) => {
-               reject(err);
-           });
-           req.on('timeout', () => {
-               req.destroy();
-           });
-           req.end();
-      });
-}
-
-function getRamUsage(ip:String, token: String, time1: String, time2: String) {
-       return new Promise ((resolve, reject) => {
-           let req = http.request({'host': ip,
-              'port': 8181,
-              'path':'/mars/analyzer/v1/timerangebar_all/ctrl/memory/' + time1 + '\/' + time2 + '/30',
-              'method': 'GET',
-              'timeout': 3000,
-              'headers': {'Cookie': 'marsGSessionId=' + token }
-              }, (res:any) => {
-                    if (res.statusCode < 200 || res.statusCode >= 300) {
-                          return reject(new Error('statusCode=' + res.statusCode));
-                    }
-                    res.on('data', (data:any) => {
-                       try {
-                           resolve(data);
-                       } catch(e) {
-                           reject(e);
-                       }
-                    });
-              });
-           req.on('error', (err:any) => {
-               reject(err);
-           });
-           req.on('timeout', () => {
-               req.destroy();
-           });
-           req.end();
-      });
-}
 function IntTwoChars(i:number) {
     return (`0${i}`).slice(-2);
 }
@@ -142,8 +86,7 @@ async function getCpuRam(marsmodel: Marsmodel) {
         let res:any = await checkIPconnectivity(marsmodel, loginpwd); //Class: http.IncomingMessage
         if (res.statusCode == 200) {
            marsmodel.status = true;
-           //console.log( "response success " + res.headers["mars_g_session_id"]);
-           let resCpu:any = await getCpuUsage(marsmodel.ip, res.headers["mars_g_session_id"], gertCurrentTimestamp(-60), gertCurrentTimestamp(0));
+           let resCpu:any = await getPath(marsmodel.ip, res.headers["mars_g_session_id"] ,'/mars/analyzer/v1/timerangebar_all/ctrl/cpu/' + gertCurrentTimestamp(-60) + '\/' + gertCurrentTimestamp(0) + '/30');
            let cpu:any = JSON.parse(resCpu.toString());
            if (cpu.cpu.length != 0) {
                //console.log(cpu.cpu[0].resources);
@@ -156,7 +99,8 @@ async function getCpuRam(marsmodel: Marsmodel) {
            } else {
                marsmodel.cpuIdle = 0;
            }
-           let resRam:any = await getRamUsage(marsmodel.ip, res.headers["mars_g_session_id"], gertCurrentTimestamp(-60), gertCurrentTimestamp(0));
+
+           let resRam:any = await getPath(marsmodel.ip, res.headers["mars_g_session_id"] ,'/mars/analyzer/v1/timerangebar_all/ctrl/memory/' + gertCurrentTimestamp(-60) + '\/' + gertCurrentTimestamp(0) + '/30');
            let mem:any = JSON.parse(resRam.toString());
            if (mem.memory.length != 0) {
                //console.log(mem.memory[0].resources);
@@ -171,16 +115,72 @@ async function getCpuRam(marsmodel: Marsmodel) {
            }
         }
     } catch (err) {
-        console.log("http request error name:" + marsmodel.name +", IP:" + marsmodel.ip + ", loginacc: " + marsmodel.loginacc + ", loginpwd: " +marsmodel.loginpwd + ", status:"+err);
+        console.log("getCpuRam error name:" + marsmodel.name +", IP:" + marsmodel.ip + ", loginacc: " + marsmodel.loginacc + ", loginpwd: " +marsmodel.loginpwd + ", status:"+err);
     }
     return marsmodel;
 }
+function getPath(ip: String, token: String, path:String) {
+       return new Promise ((resolve, reject) => {
+           let req = http.request({'host': ip,
+              'port': 8181,
+              'path': path,
+              'method': 'GET',
+              'timeout': 3000,
+              'headers': {'Cookie': 'marsGSessionId=' + token }
+              }, (res:any) => {
+                    if (res.statusCode < 200 || res.statusCode >= 300) {
+                          console.log("fail");
+                          return reject(new Error('statusCode=' + res.statusCode));
+                    }
+                    res.on('data', (data:any) => {
+                       //console.log(JSON.parse(data));
+                       try {
+                           resolve(data);
+                       } catch(e) {
+                           reject(e);
+                       }
+                    });
+              });
+           req.on('error', (err:any) => {
+               reject(err);
+           });
+           req.on('timeout', () => {
+               req.destroy();
+           });
+           req.end();
+      });
+}
+
 
 export class SiteController {
   constructor(
     @repository(MarsmodelRepository)
     public marsmodelRepository : MarsmodelRepository,
   ) {}
+
+  /*
+  async addOtherControllersInSameSite (marsmodel: Marsmodel) {
+    try {
+        let res:any = await checkIPconnectivity(marsmodel);
+        if (res.statusCode == 200) {
+            let resCluster:any = await getPath(marsmodel.ip, res.headers["mars_g_session_id"], '/mars/v1/cluster');
+            let cluster:any = JSON.parse(resCluster.toString());
+               for (const i in cluster.nodes) {
+                   if(cluster.nodes[i].ip == marsmodel.ip) {
+                       continue;
+                   }
+                   let newCtrl = new Marsmodel(marsmodel);
+                   newCtrl.name = marsmodel.name +"_" + cluster.nodes[i].ip
+                   newCtrl.ip = cluster.nodes[i].ip;
+                   this.marsmodelRepository.create(newCtrl);
+               }
+            }
+        }
+    } catch (err) {
+        console.log("addOtherControllersInSameSite error name:" + marsmodel.name +", IP:" + marsmodel.ip + ", loginacc: " + marsmodel.loginacc + ", loginpwd: " +marsmodel.loginpwd + ", status:"+err);
+    }
+  }
+  */
 
   @post('/marsmiddle')
   @response(200, {
@@ -193,7 +193,6 @@ export class SiteController {
         'application/json': {
           schema: getModelSchemaRef(Marsmodel, {
             title: 'New Mars Controller',
-            
           }),
         },
       },
@@ -205,18 +204,7 @@ export class SiteController {
        throw new CustomHttpError(400, 'Invalid IP address.');
     }
 
-    marsmodel.status = false;
-
-    try {
-        let res:any = checkIPconnectivity(marsmodel);
-        if (res.statusCode == 200) {
-           //console.log( "response success");
-           marsmodel.status = true;
-           this.marsmodelRepository.updateById(marsmodel.name, marsmodel);
-        }
-    } catch (err) {
-        console.log("http request error name:" + marsmodel.name +", IP:" + marsmodel.ip);
-    }
+    //this.addOtherControllersInSameSite(marsmodel); If this cluster's other controller using local IP, we may not connect to it. Let user add all site's controller will be better.
 
     marsmodel.loginpwd = encrypt(marsmodel.loginpwd);
     return this.marsmodelRepository.create(marsmodel);
@@ -295,16 +283,6 @@ export class SiteController {
        throw new CustomHttpError(400, 'Invalid IP address.');
     }
 
-    marsmodel.status = false;
-    try {
-        let res:any = await checkIPconnectivity(marsmodel);
-        if (res.statusCode == 200) {
-           //console.log( "response success");
-           marsmodel.status = true;
-        }
-    } catch (err) {
-        console.log("http request error name:" + marsmodel.name +", IP:" + marsmodel.ip);
-    }
     marsmodel.loginpwd = encrypt(marsmodel.loginpwd);
     return this.marsmodelRepository.updateAll(marsmodel, where);
   }
@@ -328,16 +306,6 @@ export class SiteController {
        throw new CustomHttpError(400, 'Invalid IP address.');
     }
 
-    marsmodel.status = false;
-    try {
-        let res:any = await checkIPconnectivity(marsmodel);
-        if (res.statusCode == 200) {
-           //console.log( "response success");
-           marsmodel.status = true;
-        }
-    } catch (err) {
-        console.log("http request error name:" + marsmodel.name +", IP:" + marsmodel.ip);
-    }
     marsmodel.loginpwd = encrypt(marsmodel.loginpwd);
     await this.marsmodelRepository.updateById(id, marsmodel);
   }
@@ -355,16 +323,6 @@ export class SiteController {
        throw new CustomHttpError(400, 'Invalid IP address.');
     }
 
-    marsmodel.status = false;
-    try {
-        let res:any = await checkIPconnectivity(marsmodel);
-        if (res.statusCode == 200) {
-           //console.log( "response success");
-           marsmodel.status = true;
-        }
-    } catch (err) {
-        console.log("http request error name:" + marsmodel.name +", IP:" + marsmodel.ip);
-    }
     marsmodel.loginpwd = encrypt(marsmodel.loginpwd);
     await this.marsmodelRepository.replaceById(id, marsmodel);
   }

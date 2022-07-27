@@ -14,6 +14,12 @@ export class Marsmodel extends Entity {
     type: 'string',
     required: true,
   })
+  site: string;
+
+  @property({
+    type: 'string',
+    required: true,
+  })
   ip: string;
 
   @property({
