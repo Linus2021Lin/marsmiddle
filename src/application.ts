@@ -9,6 +9,7 @@ import {RestApplication} from '@loopback/rest';
 import {ServiceMixin} from '@loopback/service-proxy';
 import path from 'path';
 import {MySequence} from './sequence';
+import {RegexpService} from './tools/regexp/regexp';
 
 export {ApplicationConfig};
 
@@ -40,5 +41,8 @@ export class MarsmiddleApplication extends BootMixin(
         nested: true,
       },
     };
+
+    // bind regexp
+    this.bind('regexpService').toClass(RegexpService);
   }
 }
