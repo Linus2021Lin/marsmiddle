@@ -20,19 +20,12 @@ import {
 } from '@loopback/rest';
 import {Marsmodel} from '../models';
 import {MarsmodelRepository} from '../repositories';
+import {CustomHttpError} from '../tools/customError/customHttpError';
 const { encrypt, decrypt } = require('./crypto');
 const isIp = require('is-ip');
 const http = require('http');
 var querystring = require('querystring');
 
-class CustomHttpError extends Error {
-  statusCode: number
-
-  constructor(status: number, message: string) {
-    super(message)
-    this.statusCode = status
-  }
-}
 function checkIPconnectivity(marsmodel:Marsmodel, password?: String) {
        return new Promise ((resolve, reject) => {
            let pass = typeof password != 'undefined' ? password: marsmodel.loginpwd;
