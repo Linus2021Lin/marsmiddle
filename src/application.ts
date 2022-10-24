@@ -9,6 +9,15 @@ import {RestApplication} from '@loopback/rest';
 import {ServiceMixin} from '@loopback/service-proxy';
 import path from 'path';
 import {MySequence} from './sequence';
+// For Login >>
+import {AuthenticationComponent} from '@loopback/authentication';
+import {
+  SECURITY_SCHEME_SPEC,
+  UserServiceBindings,
+} from '@loopback/authentication-jwt';
+import {JWTAuthenticationComponent} from './services/auth-jwt'
+import {MemDataSource} from './datasources';
+// << For Login
 import {RegexpService} from './tools/regexp/regexp';
 
 export {ApplicationConfig};
@@ -41,6 +50,13 @@ export class MarsmiddleApplication extends BootMixin(
         nested: true,
       },
     };
+
+    // Mount authentication system
+    this.component(AuthenticationComponent);
+    // Mount jwt component
+    this.component(JWTAuthenticationComponent);
+    // Bind datasource
+    this.dataSource(MemDataSource, UserServiceBindings.DATASOURCE_NAME);
 
     // bind regexp
     this.bind('regexpService').toClass(RegexpService);
