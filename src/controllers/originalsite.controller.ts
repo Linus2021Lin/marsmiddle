@@ -143,7 +143,7 @@ function getPath(ip: String, token: String, path:String) {
 }
 
 
-export class SiteController {
+export class OriginalSiteController {
   constructor(
     @repository(MarsmodelRepository)
     public marsmodelRepository : MarsmodelRepository,

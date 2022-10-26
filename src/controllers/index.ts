@@ -1,2 +1,2 @@
-export * from './site.controller';
+export * from './originalsite.controller';
 export * from './marsmiddleuser.controller';
