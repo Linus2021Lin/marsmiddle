@@ -96,16 +96,7 @@ export class MarsMiddleUserController {
 
   @post('/users/signup', {
     responses: {
-      '200': {
-        description: 'User',
-        content: {
-          'application/json': {
-            schema: {
-              'x-ts-type': UserRequest,
-            },
-          },
-        },
-      },
+      '200': { description: 'Signup success' },
     },
   })
   async signUp(
@@ -189,22 +180,13 @@ export class MarsMiddleUserController {
   @authenticate('jwt')
   @post('/users/logout', {
     responses: {
-      '200': {
-        description: 'LogoutMsg',
-        content: {
-          'application/json': {
-            schema: {
-              type: 'string',
-            },
-          },
-        },
-      },
+      '200': { description: 'Logout success' },
     },
   })
   async logout(
     @inject(SecurityBindings.USER)
     currentUser: UserProfile,
-  ): Promise<string> {
+  ): Promise<void> {
 
     let isTokenRevoked: boolean = false;
 
@@ -213,17 +195,14 @@ export class MarsMiddleUserController {
     // const currentUser: UserProfile = await this.jwtService.verifyToken(userToken);
     
     // console.log('userProfile:', currentUser);
-
     await this.userRepository.updateById(
                                           currentUser.id,
                                           { tokens: this.DEFAULT_TOKENS }
                                         )
             .then((res) => { isTokenRevoked = true; })
 
-    if (isTokenRevoked) {
-      return 'Have Been Logout';
-    } else {
-      return 'Logout failed';
+    if (!isTokenRevoked) {
+      throw new CustomHttpError(409, 'LOGOUT_FAILED');
     }
   }
 
@@ -246,7 +225,6 @@ export class MarsMiddleUserController {
     @inject(SecurityBindings.USER)
     currentUserProfile: UserProfile,
   ): Promise<string> {
-    this.userRepository.updateById
     return currentUserProfile[securityId];
   }
 
