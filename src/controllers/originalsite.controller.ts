@@ -21,7 +21,7 @@ import {
 import {Marsmodel} from '../models';
 import {MarsmodelRepository} from '../repositories';
 import {CustomHttpError} from '../tools/customError/customHttpError';
-const { encrypt, decrypt } = require('./crypto');
+const { encrypt, decrypt } = require('../tools/crypto/crypto');
 const isIp = require('is-ip');
 const http = require('http');
 var querystring = require('querystring');
