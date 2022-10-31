@@ -9,16 +9,18 @@ import {RestApplication} from '@loopback/rest';
 import {ServiceMixin} from '@loopback/service-proxy';
 import path from 'path';
 import {MySequence} from './sequence';
-// For Login >>
+// For Login Start
 import {AuthenticationComponent} from '@loopback/authentication';
 import {
   SECURITY_SCHEME_SPEC,
   UserServiceBindings,
-} from '@loopback/authentication-jwt';
-import {JWTAuthenticationComponent} from './services/auth-jwt'
+  JWTAuthenticationComponent
+} from './services/auth-jwt'
 import {MemDataSource} from './datasources';
-// << For Login
+// For Login End
 import {RegexpService} from './tools/regexp/regexp';
+import {MarsApiPathService} from './services/marsAPIs/marsApiPath'
+import {MarsConnectorService} from './services/marsConnector/marsConnector'
 
 export {ApplicationConfig};
 
@@ -58,7 +60,12 @@ export class MarsmiddleApplication extends BootMixin(
     // Bind datasource
     this.dataSource(MemDataSource, UserServiceBindings.DATASOURCE_NAME);
 
-    // bind regexp
+    // Bind regexp
     this.bind('regexpService').toClass(RegexpService);
+
+    // Bind MARS API path service
+    this.bind('marsApiPathService').toClass(MarsApiPathService);
+    // Bind MARS connector service
+    this.bind('marsConnectorService').toClass(MarsConnectorService);
   }
 }
