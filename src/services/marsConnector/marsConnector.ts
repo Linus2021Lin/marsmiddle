@@ -82,12 +82,12 @@ export class MarsConnectorService {
       }
     } catch (err) {
       console.log(
-        "getCpuRamData error" +
-        "Controller Name:" + controllerModel.controllerName +
-        ", IP:" + controllerModel.ipAddress +
-        ", Login Acc: " + controllerModel.loginAccount +
-        ", Login Pwd: " + controllerModel.loginPassword +
-        ", Error Msg:" + err
+        "ERROR <getCpuRamData> " +
+        "ControllerName: " + controllerModel.controllerName +
+        ", IP: " + controllerModel.ipAddress +
+        ", LoginAcc: " + controllerModel.loginAccount +
+        ", LoginPwd: " + controllerModel.loginPassword +
+        ", ErrorMsg:" + err
       );
     }
     return controllerModel;
