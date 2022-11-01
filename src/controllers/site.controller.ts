@@ -17,6 +17,7 @@ import {
   requestBody,
   response,
 } from '@loopback/rest';
+import {authenticate} from '@loopback/authentication';
 import {inject} from '@loopback/core';
 import {Site, Controller} from '../models';
 import {SiteRepository} from '../repositories';
@@ -48,6 +49,7 @@ export class SitesController {
     return siteId;
   }
 
+  @authenticate('jwt')
   @post('/sites')
   @response(200, {
     description: 'Site model instance',
@@ -86,6 +88,7 @@ export class SitesController {
     return this.siteRepository.create(site);
   }
 
+  @authenticate('jwt')
   @get('/sites')
   @response(200, {
     description: 'Array of Site model instances',
@@ -131,6 +134,7 @@ export class SitesController {
     return sites;
   }
 
+  @authenticate('jwt')
   @get('/sites/{siteName}')
   @response(200, {
     description: 'Site model instance',
@@ -171,6 +175,7 @@ export class SitesController {
     return response;
   }
 
+  @authenticate('jwt')
   @put('/sites/{siteName}', {
     responses: {
       '204': { description: 'Site PUT success' }
@@ -211,6 +216,7 @@ export class SitesController {
     await this.siteRepository.updateById(siteId, site);
   }
 
+  @authenticate('jwt')
   @del('/sites/{siteName}', {
     responses: {
       '204': { description: 'Site DELETE success' }
@@ -231,6 +237,7 @@ export class SitesController {
     await this.siteRepository.deleteById(siteId);
   }
 
+  @authenticate('jwt')
   @get('/sites/count')
   @response(200, {
     description: 'Site model count',

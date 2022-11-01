@@ -21,6 +21,7 @@ import {
   Site,
   Controller,
 } from '../models';
+import {authenticate} from '@loopback/authentication';
 import {inject} from '@loopback/core';
 import {SiteRepository, ControllerRepository} from '../repositories';
 import {CustomHttpError} from '../tools/customError/customHttpError';
@@ -51,6 +52,7 @@ export class SiteControllerController {
     return siteId;
   }
 
+  @authenticate('jwt')
   @post('/sites/{siteName}/controllers')
   @response(200, {
     description: 'Controller in Site model instance',
@@ -93,6 +95,7 @@ export class SiteControllerController {
     return response;
   }
 
+  @authenticate('jwt')
   @get('/sites/{siteName}/controllers/{controllerName}', {
     responses: {
       '200': {
@@ -130,6 +133,7 @@ export class SiteControllerController {
     return response[0];
   }
 
+  @authenticate('jwt')
   @put('/sites/{siteName}/controllers/{controllerName}', {
     responses: {
       '204': {
@@ -169,6 +173,7 @@ export class SiteControllerController {
     await this.siteRepository.controllers(siteId).patch(controller, _filter.where);
   }
 
+  @authenticate('jwt')
   @del('/sites/{siteName}/controllers/{controllerName}', {
     responses: {
       '204': {
