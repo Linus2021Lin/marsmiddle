@@ -59,7 +59,7 @@ export class MarsConnectorService {
         controllerModel.loginStatus = true;
 
         // CPU Data
-        const cpuApiPath = this.marsApiPathService.getCpuRamDiskStatusPath(CMDtype.cpu, this.getCurrentTimestamp(-60), this.getCurrentTimestamp(-0));
+        const cpuApiPath = this.marsApiPathService.getCpuRamDiskStatusPath(CMDtype.cpu, this.getCurrentUTCTimestamp(-60), this.getCurrentUTCTimestamp(-0));
         const cpuRes = await this.getResponseByPath(
           controllerModel.ipAddress, loginRes.headers["mars_g_session_id"], cpuApiPath
         );
@@ -70,7 +70,7 @@ export class MarsConnectorService {
         }
 
         // RAM Data
-        const ramApiPath = this.marsApiPathService.getCpuRamDiskStatusPath(CMDtype.memory, this.getCurrentTimestamp(-60), this.getCurrentTimestamp(-0));
+        const ramApiPath = this.marsApiPathService.getCpuRamDiskStatusPath(CMDtype.memory, this.getCurrentUTCTimestamp(-60), this.getCurrentUTCTimestamp(-0));
         const ramRes = await this.getResponseByPath(
           controllerModel.ipAddress, loginRes.headers["mars_g_session_id"], ramApiPath
         );
@@ -126,15 +126,15 @@ export class MarsConnectorService {
     });
   }
 
-  getCurrentTimestamp(plusSeconds: number): string {
+  getCurrentUTCTimestamp(plusSeconds: number): string {
     const ts = Date.now() + plusSeconds*1000; //plus convert to seconds
     const date_ob = new Date(ts);
-    const date = this.getIntTwoChars(date_ob.getDate());
-    const month = this.getIntTwoChars(date_ob.getMonth() + 1);
-    const year = date_ob.getFullYear();
-    const hours = this.getIntTwoChars(date_ob.getHours());
-    const minutes = this.getIntTwoChars(date_ob.getMinutes());
-    const seconds = this.getIntTwoChars(date_ob.getSeconds());
+    const date = this.getIntTwoChars(date_ob.getUTCDate());
+    const month = this.getIntTwoChars(date_ob.getUTCMonth() + 1);
+    const year = date_ob.getUTCFullYear();
+    const hours = this.getIntTwoChars(date_ob.getUTCHours());
+    const minutes = this.getIntTwoChars(date_ob.getUTCMinutes());
+    const seconds = this.getIntTwoChars(date_ob.getUTCSeconds());
     // prints date & time in 2022-07-25T08:19:00Z
     const dateDisply = year + "-" +
                       month + "-" +
