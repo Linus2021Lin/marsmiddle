@@ -128,6 +128,7 @@ export class SiteControllerController {
     if (response.length === 0) {
       throw new CustomHttpError(404, 'NOT_FOUND_CONTROLLERNAME');
     }
+    response[0].siteName = siteName; 
     response[0] = await this.marsConnectorService.getCpuRamData(response[0]);
 
     return response[0];

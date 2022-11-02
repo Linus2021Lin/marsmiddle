@@ -23,7 +23,23 @@ import {Site, Controller} from '../models';
 import {SiteRepository} from '../repositories';
 import {CustomHttpError} from '../tools/customError/customHttpError';
 import {MarsConnectorService} from '../services/marsConnector/marsConnector';
-import { promises } from 'fs';
+
+export function getSiteModelResSchemaRef() {
+  let schemaRef = getModelSchemaRef(Site, {
+                                            includeRelations: true,
+                                            exclude: ['siteId']
+                                          }
+                                    );
+  const excludeControllerProperties: (keyof Controller)[] = [
+    'siteName', 'loginPassword'
+  ];
+  excludeControllerProperties.forEach((key) => {
+    if (schemaRef.definitions.ControllerExcluding_siteId_WithRelations.properties){
+      delete schemaRef.definitions.ControllerExcluding_siteId_WithRelations.properties[key];
+    }
+  })
+  return schemaRef;
+}
 
 export class SitesController {
   constructor(
@@ -96,7 +112,7 @@ export class SitesController {
       'application/json': {
         schema: {
           type: 'array',
-          items: getModelSchemaRef(Site, {includeRelations: true}),
+          items: getSiteModelResSchemaRef(),
         },
       },
     },
@@ -140,7 +156,7 @@ export class SitesController {
     description: 'Site model instance',
     content: {
       'application/json': {
-        schema: getModelSchemaRef(Site, {includeRelations: true}),
+        schema: getSiteModelResSchemaRef(),
       },
     },
   })
