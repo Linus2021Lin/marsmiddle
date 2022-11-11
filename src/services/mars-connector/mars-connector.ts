@@ -79,15 +79,18 @@ export class MarsConnectorService {
               //console.log("result: " + mem.memory[0].resources[0].used_percent);
               controllerModel.ramUsage = ramData.memory[0].resources[0].used_percent;
         }
+      } else {
+        console.log(
+          `> Login Controller: ${controllerModel.controllerName} >> NOT 200 Response\n` +
+          `> IP: ${controllerModel.ipAddress}, LoginAcc: ${controllerModel.loginAccount}, LoginPwd: ${decrypt(controllerModel.loginPassword)}\n` +
+          `> Response Code: ${loginRes.statusCode}\n`
+        );
       }
     } catch (err) {
       console.log(
-        "ERROR <getCpuRamData> " +
-        "ControllerName: " + controllerModel.controllerName +
-        ", IP: " + controllerModel.ipAddress +
-        ", LoginAcc: " + controllerModel.loginAccount +
-        ", LoginPwd: " + controllerModel.loginPassword +
-        ", ErrorMsg:" + err
+        `> Login Controller: ${controllerModel.controllerName} >> ERROR\n` +
+        `> IP: ${controllerModel.ipAddress}, LoginAcc: ${controllerModel.loginAccount}, LoginPwd: ${decrypt(controllerModel.loginPassword)}\n` +
+        `> ${err}\n`
       );
     }
     return controllerModel;

@@ -58,6 +58,8 @@ export class ExpressServer {
     const host = this.lbApp.restServer.config.host || '127.0.0.1';
     this.server = this.expressApp.listen(port, host);
     await once(this.server, 'listening');
+    const url = host + ':' + port;
+    console.log(`Server is running at ${url}`);
   }
 
 }
