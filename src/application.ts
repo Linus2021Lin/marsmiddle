@@ -19,8 +19,8 @@ import {
 import {MemDataSource} from './datasources';
 // For Login End
 import {RegexpService} from './tools/regexp/regexp';
-import {MarsApiPathService} from './services/marsAPIs/marsApiPath'
-import {MarsConnectorService} from './services/marsConnector/marsConnector'
+import {MarsApiPathService} from './services/mars-API/mars-api-paths';
+import {MarsConnectorService} from './services/mars-connector/mars-connector';
 
 export {ApplicationConfig};
 

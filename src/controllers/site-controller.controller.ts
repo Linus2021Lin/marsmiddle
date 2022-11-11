@@ -25,7 +25,7 @@ import {authenticate} from '@loopback/authentication';
 import {inject} from '@loopback/core';
 import {SiteRepository, ControllerRepository} from '../repositories';
 import {CustomHttpError} from '../tools/customError/customHttpError';
-import {MarsConnectorService} from '../services/marsConnector/marsConnector';
+import {MarsConnectorService} from '../services/mars-connector/mars-connector';
 const { encrypt, decrypt } = require('../tools/crypto/crypto');
 
 export class SiteControllerController {

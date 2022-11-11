@@ -22,7 +22,7 @@ import {inject} from '@loopback/core';
 import {Site, Controller} from '../models';
 import {SiteRepository} from '../repositories';
 import {CustomHttpError} from '../tools/customError/customHttpError';
-import {MarsConnectorService} from '../services/marsConnector/marsConnector';
+import {MarsConnectorService} from '../services/mars-connector/mars-connector';
 
 export function getSiteModelResSchemaRef() {
   let schemaRef = getModelSchemaRef(Site, {

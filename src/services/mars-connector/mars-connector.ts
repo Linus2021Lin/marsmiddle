@@ -1,6 +1,6 @@
 import {inject} from '@loopback/core';
 import {Site, Controller} from '../../models';
-import {MarsApiPathService, CMDtype} from '../marsAPIs/marsApiPath';
+import {MarsApiPathService, CMDtype} from '../mars-API/mars-api-paths';
 
 const { encrypt, decrypt } = require('../../tools/crypto/crypto');
 const http = require('http');
