@@ -15,7 +15,8 @@ export class MarsConnectorService {
   checkIpConnectivity(
     controllerModel: Controller,
     password?: string,
-    timeout: number = 3000
+    timeout: number = 3000,
+    pendingTime: number = 15000
   ): Promise<any> {
     return new Promise ((resolve, reject) => {
       //decode apssword
@@ -32,6 +33,7 @@ export class MarsConnectorService {
                                 'Accept': 'application/json'
                               }
                             });
+
       req.on('response', (res: any) => {
           resolve(res);
       });
@@ -43,6 +45,10 @@ export class MarsConnectorService {
       });
       req.write(JSON.stringify({user_name: controllerModel.loginAccount, password: pwd}));
       req.end();
+
+      // Set the response within n* seconds ( = 'pendingTime') to avoid too long waiting time due to Pending Status
+      setTimeout(() => { req.abort(); }, pendingTime);
+
     });
   }
 
@@ -52,7 +58,8 @@ export class MarsConnectorService {
       controllerModel.cpuIdle = -1;
       controllerModel.ramUsage = -1;
 
-      const loginRes = await this.checkIpConnectivity(controllerModel); //Class: http.IncomingMessage
+      const loginRes = await this.checkIpConnectivity(controllerModel, undefined, undefined, 20000) //Class: http.IncomingMessage
+      
       if (loginRes.statusCode == 200) {
 
         // Status
