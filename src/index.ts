@@ -1,17 +1,23 @@
-import {ApplicationConfig, MarsmiddleApplication} from './application';
+import {ApplicationConfig, ExpressServer, MarsmiddleApplication} from './express-server';
 
-export * from './application';
+export {ApplicationConfig, ExpressServer, MarsmiddleApplication};
+
 
 export async function main(options: ApplicationConfig = {}) {
-  const app = new MarsmiddleApplication(options);
-  await app.boot();
-  await app.start();
 
-  const url = app.restServer.url;
-  console.log(`Server is running at ${url}`);
-  console.log(`Try ${url}/ping`);
+  const server = new ExpressServer(options);
+  await server.boot();
+  await server.start();
 
-  return app;
+  // const app = new MarsmiddleApplication(options);
+  // await app.boot();
+  // await app.start();
+
+  // const url = app.restServer.url;
+  // console.log(`Server is running at ${url}`);
+  // console.log(`Try ${url}/ping`);
+
+  // return app;
 }
 
 if (require.main === module) {
@@ -30,6 +36,9 @@ if (require.main === module) {
         // useful when used with OpenAPI-to-GraphQL to locate your application
         setServersFromRequest: true,
       },
+      // Note listenOnStart is set to false to instruct the LB4 application is not listening on HTTP 
+      // when it’s started as the Express server will be listening
+      listenOnStart: false,
     },
   };
   main(config).catch(err => {
