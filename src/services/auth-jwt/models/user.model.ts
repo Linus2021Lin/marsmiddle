@@ -6,6 +6,11 @@
 import {Entity, hasOne, model, property} from '@loopback/repository';
 import {UserCredentials} from './user-credentials.model';
 
+export enum UserRoleType {
+  administrator = 'administrator',
+  guest = 'guest'
+}
+
 @model({
   settings: {
     strict: false,
@@ -23,11 +28,6 @@ export class User extends Entity {
   })
   id: string;
 
-  @property({
-    type: 'string',
-  })
-  realm?: string;
-
   // must keep it
   @property({
     type: 'string',
@@ -40,11 +40,9 @@ export class User extends Entity {
 
   @property({
     type: 'string',
+    required: true,
   })
-  verificationToken?: string;
-
-  @hasOne(() => UserCredentials)
-  userCredentials: UserCredentials;
+  role: UserRoleType;
 
   // must keep it
   @property({
@@ -54,6 +52,18 @@ export class User extends Entity {
   })
   tokens: string[];
 
+  // @property({
+  //   type: 'string',
+  // })
+  // realm?: string;
+  
+  @property({
+    type: 'string',
+  })
+  verificationToken?: string;
+
+  @hasOne(() => UserCredentials)
+  userCredentials: UserCredentials;
 
   // Define well-known properties here
 

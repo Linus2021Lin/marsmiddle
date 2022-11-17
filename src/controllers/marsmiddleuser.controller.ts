@@ -5,6 +5,7 @@ import {
   MyUserService,
   TokenServiceBindings,
   User,
+  UserRoleType,
   UserRepository,
   UserServiceBindings,
   TokenServiceConstants
@@ -25,9 +26,59 @@ import _ from 'lodash';
 import {RegexpService} from '../tools/regexp/regexp';
 import {CustomHttpError} from '../tools/customError/customHttpError';
 
-// For SignUp & LogIn
+// For SignUp
 @model()
-export class UserRequest extends Entity {
+export class SignUpUserRequest extends Entity {
+  @property({
+    type: 'string',
+    id: true,
+    required: true
+  })
+  username: string;
+
+  @property({
+    type: 'string',
+    required: true
+  })
+  password: string;
+
+  @property({
+    type: 'string',
+    required: true
+  })
+  role: UserRoleType;
+}
+
+const SignUpCredentialsSchema: SchemaObject = {
+  type: 'object',
+  required: ['username', 'password', 'role'],
+  properties: {
+    username: {
+      type: 'string',
+      minLength: 5,
+      maxLength: 15
+    },
+    password: {
+      type: 'string',
+      minLength: 5
+    },
+    role: {
+      type: 'string'
+    },
+  },
+};
+
+export const SignUpCredentialsRequestBody = {
+  description: 'The input of signUp function',
+  required: true,
+  content: {
+    'application/json': {schema: SignUpCredentialsSchema},
+  },
+};
+
+// For LogIn
+@model()
+export class LoginUserRequest extends Entity {
   @property({
     type: 'string',
     id: true,
@@ -42,38 +93,27 @@ export class UserRequest extends Entity {
   password: string;
 }
 
-// For SignUp & LogIn
-const CredentialsSchema: SchemaObject = {
+const LoginCredentialsSchema: SchemaObject = {
   type: 'object',
   required: ['username', 'password'],
   properties: {
     username: {
       type: 'string',
-      minLength: 8,
+      minLength: 5,
       maxLength: 15
     },
     password: {
       type: 'string',
-      minLength: 8,
+      minLength: 5
     },
   },
 };
 
-// For SignUp
-export const SignUpCredentialsRequestBody = {
-  description: 'The input of signUp function',
-  required: true,
-  content: {
-    'application/json': {schema: CredentialsSchema},
-  },
-};
-
-// For LogIn
 export const LoginCredentialsRequestBody = {
   description: 'The input of login function',
   required: true,
   content: {
-    'application/json': {schema: CredentialsSchema},
+    'application/json': {schema: LoginCredentialsSchema},
   },
 };
 
@@ -94,20 +134,27 @@ export class MarsMiddleUserController {
 
   private readonly DEFAULT_TOKENS: string[] = ['defaultBlank'];
 
+  @authenticate('admin-jwt')
   @post('/users/signup', {
     responses: {
       '200': { description: 'Signup success' },
     },
   })
   async signUp(
-    @requestBody(SignUpCredentialsRequestBody) newUserRequest: UserRequest,
+    @requestBody(SignUpCredentialsRequestBody) newUserRequest: SignUpUserRequest,
   ): Promise<void> {
 
+    // Exception: Username
     const validationPattern = this.regexpService.get('name_en_15');
     if (newUserRequest.username && !validationPattern.test(newUserRequest.username)) {
       throw new CustomHttpError(422, 'INVALID_USERNAME');
     }
+    // Exception: Role
+    if (!Object.values(UserRoleType).includes(newUserRequest.role)) {
+      throw new CustomHttpError(422, 'INVALID_ROLE');
+    }    
 
+    // Set password
     const password = await hash(newUserRequest.password, await genSalt());
 
     // To fit @Loopback/authentication-jwt Interface
@@ -115,11 +162,10 @@ export class MarsMiddleUserController {
                           username: newUserRequest.username,
                           password: newUserRequest.password,
                           id: newUserRequest.username,
-                          tokens: this.DEFAULT_TOKENS
+                          tokens: this.DEFAULT_TOKENS,
+                          role: newUserRequest.role
                         };
-    await this.userRepository.create(
-                                      _.omit(userRequest, 'password'),
-                                    )
+    await this.userRepository.create( _.omit(userRequest, 'password'),)
     .then( async (res) => {
       const savedUser = res;
       await this.userRepository.userCredentials(savedUser.id).create({password});
@@ -153,8 +199,8 @@ export class MarsMiddleUserController {
     },
   })
   async login(
-    @requestBody(LoginCredentialsRequestBody) userCredentials: UserRequest,
-  ): Promise<{token: string}> {
+    @requestBody(LoginCredentialsRequestBody) userCredentials: LoginUserRequest,
+  ): Promise<{token: string, role: UserRoleType}> {
 
     const validationPattern = this.regexpService.get('name_en_15');
     if (userCredentials.username && !validationPattern.test(userCredentials.username)) {
@@ -163,9 +209,11 @@ export class MarsMiddleUserController {
 
     // ensure the user exists, and the password is correct
     let token: string = '';
+    let role: UserRoleType = UserRoleType.guest;
     await this.userService.verifyCredentials(userCredentials)
     .then( async (res) => {
       const user: User = res;
+      role = res.role;
       // convert a User object into a UserProfile object (reduced set of properties)
       const userProfile = this.userService.convertToUserProfile(user);
       // create a JSON Web Token based on the user profile
@@ -174,7 +222,7 @@ export class MarsMiddleUserController {
       const _tokens: string[] = user.tokens.concat(token);
       await this.userRepository.updateById(user.id, {tokens: _tokens});
     })
-    return {token};
+    return {'token': token, 'role': role};
   }
 
   @authenticate('jwt')

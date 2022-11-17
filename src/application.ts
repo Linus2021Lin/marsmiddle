@@ -14,7 +14,8 @@ import {AuthenticationComponent} from '@loopback/authentication';
 import {
   SECURITY_SCHEME_SPEC,
   UserServiceBindings,
-  JWTAuthenticationComponent
+  JWTAuthenticationComponent,
+  AdminJWTAuthenticationComponent
 } from './services/auth-jwt'
 import {MemDataSource} from './datasources';
 // For Login End
@@ -57,6 +58,8 @@ export class MarsmiddleApplication extends BootMixin(
     this.component(AuthenticationComponent);
     // Mount jwt component
     this.component(JWTAuthenticationComponent);
+    // Mount admin-jwt component
+    this.component(AdminJWTAuthenticationComponent);
     // Bind datasource
     this.dataSource(MemDataSource, UserServiceBindings.DATASOURCE_NAME);
 

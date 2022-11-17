@@ -9,6 +9,7 @@ import {HttpErrors, Request} from '@loopback/rest';
 import {UserProfile} from '@loopback/security';
 import {TokenServiceBindings, UserServiceBindings} from '../keys';
 import {MyUserService} from './user.service';
+import {UserRoleType} from '../models';
 
 export class JWTAuthenticationStrategy implements AuthenticationStrategy {
   name = 'jwt';
@@ -56,4 +57,24 @@ export class JWTAuthenticationStrategy implements AuthenticationStrategy {
 
     return token;
   }
+}
+
+export class AdminJWTAuthenticationStrategy extends JWTAuthenticationStrategy {
+  name = 'admin-jwt';
+  
+  async authenticate(request: Request): Promise<UserProfile | undefined> {
+    const token: string = this.extractCredentials(request);
+    const userProfile: UserProfile = await this.tokenService.verifyToken(token);
+    
+    const user = await this.userService.findUserById(userProfile.id);
+    if (user.role != UserRoleType.administrator) {
+      throw new HttpErrors.Unauthorized(`INVALID_ROLE`,);
+    }
+    if (!user.tokens.includes(token)) {
+      throw new HttpErrors.Unauthorized(`INVALID_OR_EXPIRED_TOKEN`,);
+    }
+
+    return userProfile;
+  }
+
 }
