@@ -138,7 +138,7 @@ export class SiteControllerController {
   @put('/sites/{siteName}/controllers/{controllerName}', {
     responses: {
       '204': {
-        description: 'Site.Controller PATCH success',
+        description: 'Site.Controller PUT success',
       },
     },
   })
