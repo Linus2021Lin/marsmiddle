@@ -52,7 +52,7 @@ export class SiteControllerController {
     return siteId;
   }
 
-  @authenticate('jwt')
+  @authenticate('admin-jwt')
   @post('/sites/{siteName}/controllers')
   @response(200, {
     description: 'Controller in Site model instance',
@@ -134,7 +134,7 @@ export class SiteControllerController {
     return response[0];
   }
 
-  @authenticate('jwt')
+  @authenticate('admin-jwt')
   @put('/sites/{siteName}/controllers/{controllerName}', {
     responses: {
       '204': {
@@ -174,7 +174,7 @@ export class SiteControllerController {
     await this.siteRepository.controllers(siteId).patch(controller, _filter.where);
   }
 
-  @authenticate('jwt')
+  @authenticate('admin-jwt')
   @del('/sites/{siteName}/controllers/{controllerName}', {
     responses: {
       '204': {

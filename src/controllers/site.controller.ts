@@ -65,7 +65,7 @@ export class SitesController {
     return siteId;
   }
 
-  @authenticate('jwt')
+  @authenticate('admin-jwt')
   @post('/sites')
   @response(200, {
     description: 'Site model instance',
@@ -191,7 +191,7 @@ export class SitesController {
     return response;
   }
 
-  @authenticate('jwt')
+  @authenticate('admin-jwt')
   @put('/sites/{siteName}', {
     responses: {
       '204': { description: 'Site PUT success' }
@@ -232,7 +232,7 @@ export class SitesController {
     await this.siteRepository.updateById(siteId, site);
   }
 
-  @authenticate('jwt')
+  @authenticate('admin-jwt')
   @del('/sites/{siteName}', {
     responses: {
       '204': { description: 'Site DELETE success' }
