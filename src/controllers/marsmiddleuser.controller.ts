@@ -8,17 +8,23 @@ import {
   UserRoleType,
   UserRepository,
   UserServiceBindings,
-  TokenServiceConstants
+  TokenServiceConstants,
+  UserCredentials,
+  UserCredentialsRepository
 } from '../services/auth-jwt';
 import {inject} from '@loopback/core';
-import {model, property, repository, Entity} from '@loopback/repository';
+import {model, property, repository, Entity, Filter} from '@loopback/repository';
 import {
   get,
+  put,
+  del,
+  param,
   getModelSchemaRef,
   post,
   requestBody,
   SchemaObject,
-  RequestContext
+  RequestContext,
+  HttpErrors
 } from '@loopback/rest';
 import {SecurityBindings, securityId, UserProfile} from '@loopback/security';
 import {genSalt, hash} from 'bcryptjs';
@@ -117,6 +123,44 @@ export const LoginCredentialsRequestBody = {
   },
 };
 
+// For Update User
+@model()
+export class UpdateUserRequest extends Entity {
+  @property({
+    type: 'string',
+    required: true
+  })
+  password: string;
+
+  @property({
+    type: 'string',
+    required: true
+  })
+  role: UserRoleType;
+}
+
+const UpdateUserSchema: SchemaObject = {
+  type: 'object',
+  required: ['password', 'role'],
+  properties: {
+    password: {
+      type: 'string',
+      minLength: 5
+    },
+    role: {
+      type: 'string'
+    },
+  },
+};
+
+export const UpdateUserRequestBody = {
+  description: 'The input of update user function',
+  required: true,
+  content: {
+    'application/json': {schema: UpdateUserSchema},
+  },
+};
+
 export class MarsMiddleUserController {
   constructor(
     @inject(TokenServiceBindings.TOKEN_SERVICE)
@@ -126,6 +170,7 @@ export class MarsMiddleUserController {
     @inject(SecurityBindings.USER, {optional: true})
     public user: UserProfile,
     @repository(UserRepository) protected userRepository: UserRepository,
+    @repository(UserCredentialsRepository) protected userCredentialsRepository: UserRepository,
     @inject('regexpService')
     private regexpService: RegexpService,
     @inject.context() 
@@ -191,6 +236,9 @@ export class MarsMiddleUserController {
                 token: {
                   type: 'string',
                 },
+                role: {
+                  type: 'string',
+                },
               },
             },
           },
@@ -252,6 +300,106 @@ export class MarsMiddleUserController {
     if (!isTokenRevoked) {
       throw new CustomHttpError(409, 'LOGOUT_FAILED');
     }
+  }
+
+  @authenticate('jwt')
+  @get('/users', {
+    responses: {
+      '200': {
+        description: 'Array of User instances',
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              properties: {
+                username: {
+                  type: 'string',
+                },
+                role: {
+                  type: 'string',
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  })
+  async findUsers(
+  ): Promise<{username: string, role: UserRoleType}[]> {
+    const users = await this.userRepository.find();
+    const response: {username: string, role: UserRoleType}[] = [];
+    users.forEach( (user) => {
+      const _user = {
+                      'username': user.username,
+                      'role': user.role
+                    };
+      response.push(_user);
+    })
+
+    return response;
+  }
+
+  @authenticate('jwt')
+  @put('/users/{userName}', {
+    responses: {
+      '204': {
+        description: 'User account PUT success',
+      },
+    },
+  })
+  async updateByUserName(
+    @param.path.string('userName') userName: string,
+    @requestBody(UpdateUserRequestBody) updateUserRequest: UpdateUserRequest,
+    @inject(SecurityBindings.USER)
+    currentUserProfile: UserProfile,
+  ): Promise<void> {
+    // If user is NOT administrator, he/ she can only update his/ her own user info.
+    const currentUserId = currentUserProfile[securityId];
+    const currentUser = await this.userRepository.findById(currentUserId);
+    if (currentUser.role != "administrator" && currentUserId != userName) {
+      throw new HttpErrors.Unauthorized(`INVALID_ROLE`,);
+    }
+    // Set password
+    const password = await hash(updateUserRequest.password, await genSalt());
+    // To fit @Loopback/authentication-jwt Interface
+    const userRequest = {
+                          username: userName,
+                          password: updateUserRequest.password,
+                          id: userName,
+                          tokens: this.DEFAULT_TOKENS,
+                          role: updateUserRequest.role
+                        };
+    // In loopback4, Update: apply to partial fields(PATCH), Replace: apply to all fields(PUT)
+    await this.userRepository.updateById(userName, _.omit(userRequest, 'password'))
+      .then( async (res) => {
+        await this.userRepository.userCredentials(userName).patch({password});
+      })
+  }
+
+  @authenticate('admin-jwt')
+  @del('/users/{userName}', {
+    responses: {
+      '204': {
+        description: 'User account DELETE success',
+      },
+    },
+  })
+  async deleteByUserName(@param.path.string('userName') userName: string): Promise<void> {
+    // Check the number of administrator. At least one administrator is required.
+    const isAdminFilter: Filter<User> = {
+      "where": {"role": "administrator"}
+    }
+    const adminArray = await this.userRepository.find(isAdminFilter);
+    if (adminArray.length < 2) {
+      throw new CustomHttpError(403, 'At least one administrator is required.');
+    }
+    // Delete selected User
+    const _filter: Filter<UserCredentials> = {
+      "where": {"userId": userName}
+    }
+    await this.userCredentialsRepository.deleteAll(_filter.where);
+    await this.userRepository.deleteById(userName);
   }
 
   @authenticate('jwt')
