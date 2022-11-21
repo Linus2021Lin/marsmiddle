@@ -233,10 +233,13 @@ export class MarsMiddleUserController {
             schema: {
               type: 'object',
               properties: {
-                token: {
+                username: {
                   type: 'string',
                 },
                 role: {
+                  type: 'string',
+                },
+                token: {
                   type: 'string',
                 },
               },
@@ -248,7 +251,7 @@ export class MarsMiddleUserController {
   })
   async login(
     @requestBody(LoginCredentialsRequestBody) userCredentials: LoginUserRequest,
-  ): Promise<{token: string, role: UserRoleType}> {
+  ): Promise<{username: string, role: UserRoleType, token: string}> {
 
     const validationPattern = this.regexpService.get('name_en_15');
     if (userCredentials.username && !validationPattern.test(userCredentials.username)) {
@@ -270,7 +273,7 @@ export class MarsMiddleUserController {
       const _tokens: string[] = user.tokens.concat(token);
       await this.userRepository.updateById(user.id, {tokens: _tokens});
     })
-    return {'token': token, 'role': role};
+    return {'username': userCredentials.username, 'role': role, 'token': token};
   }
 
   @authenticate('jwt')
