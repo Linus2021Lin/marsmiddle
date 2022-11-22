@@ -127,37 +127,25 @@ export const LoginCredentialsRequestBody = {
 @model()
 export class UpdateUserRequest extends Entity {
   @property({
-    type: 'string',
-    required: true
+    type: 'string'
   })
   password: string;
 
   @property({
-    type: 'string',
-    required: true
+    type: 'string'
   })
   role: UserRoleType;
 }
-
-const UpdateUserSchema: SchemaObject = {
-  type: 'object',
-  required: ['password', 'role'],
-  properties: {
-    password: {
-      type: 'string',
-      minLength: 5
-    },
-    role: {
-      type: 'string'
-    },
-  },
-};
 
 export const UpdateUserRequestBody = {
   description: 'The input of update user function',
   required: true,
   content: {
-    'application/json': {schema: UpdateUserSchema},
+    'application/json': {
+      schema: getModelSchemaRef(UpdateUserRequest, {
+        partial: true,
+      }),
+    },
   },
 };
 
@@ -197,7 +185,7 @@ export class MarsMiddleUserController {
     // Exception: Role
     if (!Object.values(UserRoleType).includes(newUserRequest.role)) {
       throw new CustomHttpError(422, 'INVALID_ROLE');
-    }    
+    }
 
     // Set password
     const password = await hash(newUserRequest.password, await genSalt());
@@ -357,27 +345,51 @@ export class MarsMiddleUserController {
     @inject(SecurityBindings.USER)
     currentUserProfile: UserProfile,
   ): Promise<void> {
-    // If user is NOT administrator, he/ she can only update his/ her own user info.
+    // check if the user exists
+    const selectedUser = await this.userRepository.findById(userName);
+    if (!selectedUser) {
+      throw new HttpErrors.Unauthorized(`INVALID_USERNAME`,);
+    }
+    // If user is NOT administrator, he/ she can only update his/ her own user password.
     const currentUserId = currentUserProfile[securityId];
     const currentUser = await this.userRepository.findById(currentUserId);
-    if (currentUser.role != "administrator" && currentUserId != userName) {
+    if (currentUser.role != UserRoleType.administrator && currentUserId != userName) {
       throw new HttpErrors.Unauthorized(`INVALID_ROLE`,);
     }
-    // Set password
-    const password = await hash(updateUserRequest.password, await genSalt());
-    // To fit @Loopback/authentication-jwt Interface
-    const userRequest = {
-                          username: userName,
-                          password: updateUserRequest.password,
-                          id: userName,
-                          tokens: this.DEFAULT_TOKENS,
-                          role: updateUserRequest.role
-                        };
-    // In loopback4, Update: apply to partial fields(PATCH), Replace: apply to all fields(PUT)
-    await this.userRepository.updateById(userName, _.omit(userRequest, 'password'))
-      .then( async (res) => {
-        await this.userRepository.userCredentials(userName).patch({password});
-      })
+    if (currentUser.role != UserRoleType.administrator && updateUserRequest.role) { // guests can't update role setting
+      throw new HttpErrors.Unauthorized(`INVALID_ROLE`,);
+    }
+    // Exception: Role format
+    if (updateUserRequest.role && !Object.values(UserRoleType).includes(updateUserRequest.role)){
+      throw new CustomHttpError(422, 'INVALID_ROLE');
+    }
+    // At least one administrator is required
+    if (selectedUser.role == UserRoleType.administrator && updateUserRequest.role != UserRoleType.administrator) {
+      await this.checkMoreThanOneAdministratorExists();
+    }
+
+    if (updateUserRequest.password) {
+      // Set password
+      const password = await hash(updateUserRequest.password, await genSalt());
+      // To fit @Loopback/authentication-jwt Interface
+      const userRequest = {
+                            username: userName,
+                            password: updateUserRequest.password,
+                            id: userName,
+                            tokens: this.DEFAULT_TOKENS,
+                            role: updateUserRequest.role || selectedUser.role
+                          };
+      // In loopback4, Update: apply to partial fields(PATCH), Replace: apply to all fields(PUT)
+      await this.userRepository.updateById(userName, _.omit(userRequest, 'password'))
+        .then( async (res) => {
+          await this.userRepository.userCredentials(userName).patch({password});
+        })
+    } else if (updateUserRequest.role){
+      const userRequest = {
+        role: updateUserRequest.role
+      };
+      await this.userRepository.updateById(userName, userRequest);
+    }
   }
 
   @authenticate('admin-jwt')
@@ -389,14 +401,8 @@ export class MarsMiddleUserController {
     },
   })
   async deleteByUserName(@param.path.string('userName') userName: string): Promise<void> {
-    // Check the number of administrator. At least one administrator is required.
-    const isAdminFilter: Filter<User> = {
-      "where": {"role": "administrator"}
-    }
-    const adminArray = await this.userRepository.find(isAdminFilter);
-    if (adminArray.length < 2) {
-      throw new CustomHttpError(403, 'At least one administrator is required.');
-    }
+    // At least one administrator is required
+    await this.checkMoreThanOneAdministratorExists();
     // Delete selected User
     const _filter: Filter<UserCredentials> = {
       "where": {"userId": userName}
@@ -425,6 +431,17 @@ export class MarsMiddleUserController {
     currentUserProfile: UserProfile,
   ): Promise<string> {
     return currentUserProfile[securityId];
+  }
+
+  async checkMoreThanOneAdministratorExists() {
+    // Check the number of administrator. At least one administrator is required.
+    const isAdminFilter: Filter<User> = {
+      "where": {"role": "administrator"}
+    }
+    const adminArray = await this.userRepository.find(isAdminFilter);
+    if (adminArray.length < 2) {
+      throw new CustomHttpError(403, 'At least one administrator is required.');
+    }
   }
 
 }
