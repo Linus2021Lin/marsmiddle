@@ -401,8 +401,15 @@ export class MarsMiddleUserController {
     },
   })
   async deleteByUserName(@param.path.string('userName') userName: string): Promise<void> {
+    // check if the user exists
+    const selectedUser = await this.userRepository.findById(userName);
+    if (!selectedUser) {
+      throw new HttpErrors.Unauthorized(`INVALID_USERNAME`,);
+    }
     // At least one administrator is required
-    await this.checkMoreThanOneAdministratorExists();
+    if (selectedUser.role == UserRoleType.administrator) {
+      await this.checkMoreThanOneAdministratorExists();
+    }
     // Delete selected User
     const _filter: Filter<UserCredentials> = {
       "where": {"userId": userName}
