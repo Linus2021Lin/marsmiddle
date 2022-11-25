@@ -46,10 +46,20 @@ export class SiteControllerController {
       if (res) {
         siteId = res.siteId;
       } else {
-        throw new CustomHttpError(404, 'NOT_FOUND_SITENAME');
+        throw new CustomHttpError(404, 'SITE_NOT_FOUND');
       }
     })
     return siteId;
+  }
+
+  async checkControllerExists(siteId: string, controllerName: string): Promise<void> {
+    const _filter: Filter<Controller> = {
+      "where": {"controllerName": controllerName}
+    }
+    const response = await this.siteRepository.controllers(siteId).find(_filter);
+    if (response.length === 0) {
+      throw new CustomHttpError(404, 'CONTROLLER_NOT_FOUND');
+    }
   }
 
   @authenticate('admin-jwt')
@@ -116,17 +126,14 @@ export class SiteControllerController {
     // @param.query.object('filter') filter?: Filter<Controller>,
   ): Promise<Controller> {
     // Get ID of selected site
-    let siteId = '';
-    await this.getSiteId(siteName).then(
-      (res) => { siteId = res; }
-    )
+    const siteId = await this.getSiteId(siteName);
     // set value of loginStatus, cpuIdle, ramUsage
     const _filter: Filter<Controller> = {
       "where": {"controllerName": controllerName}
     }
     const response = await this.siteRepository.controllers(siteId).find(_filter);
     if (response.length === 0) {
-      throw new CustomHttpError(404, 'NOT_FOUND_CONTROLLERNAME');
+      throw new CustomHttpError(404, 'CONTROLLER_NOT_FOUND');
     }
     response[0].siteName = siteName; 
     response[0] = await this.marsConnectorService.getCpuRamData(response[0]);
@@ -158,18 +165,18 @@ export class SiteControllerController {
     controller: Partial<Controller>,
   ): Promise<void> {
     // Get ID of selected site
-    let siteId = '';
-    await this.getSiteId(siteName).then(
-      (res) => { siteId = res; }
-    )
-    const _filter: Filter<Controller> = {
-      "where": {"controllerName": controllerName}
-    }
+    const siteId = await this.getSiteId(siteName);
+    // Check if controller exists
+    await this.checkControllerExists(siteId, controllerName);
+
     // encode password
     if (controller.loginPassword) {
       controller.loginPassword = encrypt(controller.loginPassword);
     }
 
+    const _filter: Filter<Controller> = {
+      "where": {"controllerName": controllerName}
+    };
     // In loopback4, Update: apply to partial fields(PATCH), Replace: apply to all fields(PUT)
     await this.siteRepository.controllers(siteId).patch(controller, _filter.where);
   }
@@ -187,20 +194,13 @@ export class SiteControllerController {
     @param.path.string('controllerName') controllerName: string,
   ): Promise<void> {
     // Get ID of selected site
-    let siteId = '';
-    await this.getSiteId(siteName).then(
-      (res) => { siteId = res; }
-    )
+    const siteId = await this.getSiteId(siteName);
+    // Check if controller exists
+    await this.checkControllerExists(siteId, controllerName);
     
     const _filter: Filter<Controller> = {
       "where": {"controllerName": controllerName}
-    }
-    await this.siteRepository.controllers(siteId).find(_filter)
-    .then((res) => {
-      if (res.length === 0) {
-        throw new CustomHttpError(404, 'NOT_FOUND_CONTROLLERNAME');
-      }
-    })
+    };
     await this.siteRepository.controllers(siteId).delete(_filter.where);
   }
 }
