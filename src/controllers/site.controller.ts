@@ -165,10 +165,7 @@ export class SitesController {
     // @param.filter(Site, {exclude: 'where'}) filter?: FilterExcludingWhere<Site>
   ): Promise<Site> {
     // Get ID of selected site
-    let siteId = '';
-    await this.getSiteId(siteName).then(
-      (res) => { siteId = res; }
-    )
+    const siteId = await this.getSiteId(siteName);
     const filter = {
       "include": ['controllers']
     };
@@ -212,10 +209,7 @@ export class SitesController {
     site: Site,
   ): Promise<void> {
     // Get ID of selected site
-    let siteId = '';
-    await this.getSiteId(siteName).then(
-      (res) => { siteId = res; }
-    )
+    const siteId = await this.getSiteId(siteName);
     // Check if site name has been used before, it should be unique
     if (site.siteName) {
       const _filter: Filter<Site> = {
@@ -240,10 +234,7 @@ export class SitesController {
   })
   async deleteById(@param.path.string('siteName') siteName: string): Promise<void> {
     // Get ID of selected site
-    let siteId = '';
-    await this.getSiteId(siteName).then(
-      (res) => { siteId = res; }
-    )
+    const siteId = await this.getSiteId(siteName);
     // Delete all controllers of the Site
     const _filter: Filter<Controller> = {
       "where": {"siteId": siteId}
