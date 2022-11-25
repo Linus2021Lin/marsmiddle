@@ -52,14 +52,14 @@ export class SitesController {
   async getSiteId(siteName: string): Promise<string> {
     let siteId: string = '';
     const filter: Filter<Site> = {
-      "where": {"siteName":siteName}
+      "where": {"siteName": siteName}
     }
     await this.siteRepository.findOne(filter)
     .then( (res) => {
       if (res) {
         siteId = res.siteId;
       } else {
-        throw new CustomHttpError(404, 'NOT_FOUND_SITENAME');
+        throw new CustomHttpError(404, 'SITE_NOT_FOUND');
       }
     })
     return siteId;
@@ -98,7 +98,7 @@ export class SitesController {
     await this.siteRepository.find(filter)
     .then( (res) => {
       if (res.length > 0) {
-        throw new CustomHttpError(409, 'SITENAME_CONFLICT');
+        throw new CustomHttpError(409, 'SITENAME_ALREADY_EXISTS');
       }
     })
     return this.siteRepository.create(site);
@@ -224,7 +224,7 @@ export class SitesController {
       await this.siteRepository.find(_filter)
       .then( (res) => {
         if (res.length > 0) {
-          throw new CustomHttpError(409, 'SITENAME_CONFLICT');
+          throw new CustomHttpError(409, 'SITENAME_ALREADY_EXISTS');
         }
       })
     }
