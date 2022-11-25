@@ -25,7 +25,7 @@ export class JWTService implements TokenService {
   async verifyToken(token: string): Promise<UserProfile> {
     if (!token) {
       throw new HttpErrors.Unauthorized(
-        `Error verifying token : 'token' is null`,
+        `TOKEN_NOT_FOUND`,
       );
     }
 
@@ -44,18 +44,16 @@ export class JWTService implements TokenService {
         },
       );
     } catch (error) {
-      throw new HttpErrors.Unauthorized(
-        `Error verifying token : ${error.message}`,
-      );
+      console.log('INVALID_TOKEN: ', error.message);
+      throw new HttpErrors.Unauthorized(`INVALID_TOKEN`,);
     }
     return userProfile;
   }
 
   async generateToken(userProfile: UserProfile): Promise<string> {
     if (!userProfile) {
-      throw new HttpErrors.Unauthorized(
-        'Error generating token : userProfile is null',
-      );
+      console.log('Error generating token : userProfile is null');
+      throw new HttpErrors.Unauthorized('GENERATING_TOKEN_ERROR',);
     }
     const userInfoForToken = {
       id: userProfile[securityId],
@@ -69,7 +67,8 @@ export class JWTService implements TokenService {
         expiresIn: Number(this.jwtExpiresIn),
       });
     } catch (error) {
-      throw new HttpErrors.Unauthorized(`Error encoding token : ${error}`);
+      console.log(`Error encoding token : ${error}`);
+      throw new HttpErrors.Unauthorized('ENCODING_TOKEN_ERROR');
     }
 
     return token;

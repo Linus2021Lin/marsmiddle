@@ -26,7 +26,7 @@ export class MyUserService implements UserService<User, Credentials> {
   ) {}
 
   async verifyCredentials(credentials: Credentials): Promise<User> {
-    const invalidCredentialsError = 'Invalid username or password.';
+    const invalidCredentialsError = 'INVALID_USERNAME_OR_PASSWORD';
 
     const foundUser = await this.userRepository.findOne({
       where: {username: credentials.username},
@@ -64,7 +64,7 @@ export class MyUserService implements UserService<User, Credentials> {
 
   //function to find user by id
   async findUserById(id: string): Promise<User & UserWithRelations> {
-    const userNotfound = 'invalid User';
+    const userNotfound = 'INVALID_USERNAME'; // not to tell client why there is no response
     const foundUser = await this.userRepository.findOne({
       where: {id: id},
     });

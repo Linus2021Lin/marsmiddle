@@ -26,33 +26,27 @@ export class JWTAuthenticationStrategy implements AuthenticationStrategy {
     const userProfile: UserProfile = await this.tokenService.verifyToken(token);
     const user = await this.userService.findUserById(userProfile.id);
     if (!user.tokens.includes(token)) {
-      throw new HttpErrors.Unauthorized(
-        `INVALID_OR_EXPIRED_TOKEN`,
-      );
+      throw new HttpErrors.Unauthorized(`INVALID_OR_EXPIRED_TOKEN`,);
     }
     return userProfile;
   }
 
   extractCredentials(request: Request): string {
     if (!request.headers.authorization) {
-      throw new HttpErrors.Unauthorized(`Authorization header not found.`);
+      throw new HttpErrors.Unauthorized(`AUTH_HEADER_NOT_FOUND`);
     }
 
     // for example : Bearer xxx.yyy.zzz
     const authHeaderValue = request.headers.authorization;
 
     if (!authHeaderValue.startsWith('Bearer')) {
-      throw new HttpErrors.Unauthorized(
-        `Authorization header is not of type 'Bearer'.`,
-      );
+      throw new HttpErrors.Unauthorized(`AUTH_HEADER_NOT_BEARER`,);
     }
 
     //split the string into 2 parts : 'Bearer ' and the `xxx.yyy.zzz`
     const parts = authHeaderValue.split(' ');
     if (parts.length !== 2)
-      throw new HttpErrors.Unauthorized(
-        `Authorization header value has too many parts. It must follow the pattern: 'Bearer xx.yy.zz' where xx.yy.zz is a valid JWT token.`,
-      );
+      throw new HttpErrors.Unauthorized(`AUTH_HEADER_INVALID_PATTERN`,);
     const token = parts[1];
 
     return token;
@@ -65,7 +59,7 @@ export class AdminJWTAuthenticationStrategy extends JWTAuthenticationStrategy {
   async authenticate(request: Request): Promise<UserProfile | undefined> {
     const token: string = this.extractCredentials(request);
     const userProfile: UserProfile = await this.tokenService.verifyToken(token);
-    
+
     const user = await this.userService.findUserById(userProfile.id);
     if (user.role != UserRoleType.administrator) {
       throw new HttpErrors.Unauthorized(`INVALID_ROLE`,);
