@@ -5,6 +5,7 @@ import {
   MyUserService,
   TokenServiceBindings,
   User,
+  UserRelations,
   UserRoleType,
   UserRepository,
   UserServiceBindings,
@@ -205,7 +206,7 @@ export class MarsMiddleUserController {
     })
     .catch((err) => {
       if (err.message.includes('User.id') && err.status == 409) {
-        throw new CustomHttpError(409, 'USERNAME_CONFLICT');
+        throw new CustomHttpError(409, 'USERNAME_ALREADY_EXISTS');
       } else {
         throw err;
       }
@@ -274,21 +275,13 @@ export class MarsMiddleUserController {
     @inject(SecurityBindings.USER)
     currentUser: UserProfile,
   ): Promise<void> {
-
-    let isTokenRevoked: boolean = false;
-
     // const authHeader = this.requestContext.request.headers?.authorization || '';
     // const userToken = authHeader.split(" ")[1];
     // const currentUser: UserProfile = await this.jwtService.verifyToken(userToken);
-    
-    // console.log('userProfile:', currentUser);
-    await this.userRepository.updateById(
-                                          currentUser.id,
-                                          { tokens: this.DEFAULT_TOKENS }
-                                        )
-            .then((res) => { isTokenRevoked = true; })
-
-    if (!isTokenRevoked) {
+    try {
+      await this.userRepository.updateById(currentUser.id, {tokens: this.DEFAULT_TOKENS});
+    }
+    catch (err) {
       throw new CustomHttpError(409, 'LOGOUT_FAILED');
     }
   }
@@ -348,7 +341,7 @@ export class MarsMiddleUserController {
     // check if the user exists
     const selectedUser = await this.userRepository.findById(userName);
     if (!selectedUser) {
-      throw new HttpErrors.Unauthorized(`INVALID_USERNAME`,);
+      throw new HttpErrors.Unauthorized('INVALID_USERNAME');
     }
     // If user is NOT administrator, he/ she can only update his/ her own user password.
     const currentUserId = currentUserProfile[securityId];
@@ -401,14 +394,19 @@ export class MarsMiddleUserController {
     },
   })
   async deleteByUserName(@param.path.string('userName') userName: string): Promise<void> {
-    // check if the user exists
-    const selectedUser = await this.userRepository.findById(userName);
-    if (!selectedUser) {
-      throw new HttpErrors.Unauthorized(`INVALID_USERNAME`,);
+    try {
+      const selectedUser = await this.userRepository.findById(userName);
+      // At least one administrator is required
+      if (selectedUser.role == UserRoleType.administrator) {
+        await this.checkMoreThanOneAdministratorExists();
+      }
     }
-    // At least one administrator is required
-    if (selectedUser.role == UserRoleType.administrator) {
-      await this.checkMoreThanOneAdministratorExists();
+    catch (err) {
+      if (err.code && err.code.includes('NOT_FOUND')) {
+        throw new HttpErrors.Unauthorized('INVALID_USERNAME');
+      } else {
+        throw err;
+      }
     }
     // Delete selected User
     const _filter: Filter<UserCredentials> = {
@@ -447,7 +445,7 @@ export class MarsMiddleUserController {
     }
     const adminArray = await this.userRepository.find(isAdminFilter);
     if (adminArray.length < 2) {
-      throw new CustomHttpError(403, 'At least one administrator is required.');
+      throw new CustomHttpError(403, 'ONE_ADMIN_REQUIRED');
     }
   }
 
