@@ -244,7 +244,7 @@ export class MarsMiddleUserController {
 
     const validationPattern = this.regexpService.get('name_en_15');
     if (userCredentials.username && !validationPattern.test(userCredentials.username)) {
-      throw new CustomHttpError(422, 'INVALID_USERNAME');
+      throw new CustomHttpError(403, 'INVALID_USERNAME_OR_PASSWORD');
     }
 
     // ensure the user exists, and the password is correct
