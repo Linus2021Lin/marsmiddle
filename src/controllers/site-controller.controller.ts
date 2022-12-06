@@ -24,6 +24,7 @@ import {
 import {authenticate} from '@loopback/authentication';
 import {inject} from '@loopback/core';
 import {SiteRepository, ControllerRepository} from '../repositories';
+import {RegexpService} from '../tools/regexp/regexp';
 import {CustomHttpError} from '../tools/customError/customHttpError';
 import {MarsConnectorService} from '../services/mars-connector/mars-connector';
 const { encrypt, decrypt } = require('../tools/crypto/crypto');
@@ -34,6 +35,8 @@ export class SiteControllerController {
     @repository(ControllerRepository) protected controllerRepository: ControllerRepository,
     @inject('marsConnectorService')
     private marsConnectorService: MarsConnectorService,
+    @inject('regexpService')
+    private regexpService: RegexpService
   ) { }
 
   async getSiteId(siteName: string): Promise<string> {
@@ -86,13 +89,32 @@ export class SiteControllerController {
           }),
         },
       },
-    }) controller: Omit<Controller, 'controllerName'>,
+    }) controller: Controller,
   ): Promise<Controller> {
+    // Exception: Controller name format
+    const ctrlNameValidationPattern = this.regexpService.get('name_en_15');
+    if (!ctrlNameValidationPattern.test(controller.controllerName)) {
+      throw new CustomHttpError(422, 'CONTROLLERNAME_RESTRICTIONS');
+    }
+
+    // Exception: IP format
+    const ipValidationPattern = this.regexpService.get('ipv4');
+    if (!ipValidationPattern.test(controller.ipAddress)) {
+      throw new CustomHttpError(422, 'INVALID_IP_ADDRESS');
+    }
+
     // Get ID of selected site
-    let siteId = '';
-    await this.getSiteId(siteName).then(
-      (res) => { siteId = res; }
-    )
+    const siteId = await this.getSiteId(siteName);
+
+    // Check if controller already exist
+    const _filter: Filter<Controller> = {
+      "where": {"controllerName": controller.controllerName}
+    };
+    const ctrl = await this.siteRepository.controllers(siteId).find(_filter);
+    if (ctrl.length > 0) {
+      throw new CustomHttpError(404, 'CONTROLLER_ALREADY_EXISTS');
+    }
+
     // encode password
     controller.loginPassword = encrypt(controller.loginPassword);
 
@@ -164,6 +186,13 @@ export class SiteControllerController {
     })
     controller: Partial<Controller>,
   ): Promise<void> {
+
+    // Exception: IP format
+    const ipValidationPattern = this.regexpService.get('ipv4');
+    if (controller.ipAddress && !ipValidationPattern.test(controller.ipAddress)) {
+      throw new CustomHttpError(422, 'INVALID_IP_ADDRESS');
+    }
+
     // Get ID of selected site
     const siteId = await this.getSiteId(siteName);
     // Check if controller exists

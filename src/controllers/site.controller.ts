@@ -21,6 +21,7 @@ import {authenticate} from '@loopback/authentication';
 import {inject} from '@loopback/core';
 import {Site, Controller} from '../models';
 import {SiteRepository} from '../repositories';
+import {RegexpService} from '../tools/regexp/regexp';
 import {CustomHttpError} from '../tools/customError/customHttpError';
 import {MarsConnectorService} from '../services/mars-connector/mars-connector';
 
@@ -47,6 +48,8 @@ export class SitesController {
     public siteRepository : SiteRepository,
     @inject('marsConnectorService')
     private marsConnectorService: MarsConnectorService,
+    @inject('regexpService')
+    private regexpService: RegexpService
   ) {}
 
   async getSiteId(siteName: string): Promise<string> {
@@ -91,6 +94,11 @@ export class SitesController {
     })
     site: Site,
   ): Promise<Site> {
+    // Exception: Site name format
+    const siteNameValidationPattern = this.regexpService.get('name_en_15');
+    if (!siteNameValidationPattern.test(site.siteName)) {
+      throw new CustomHttpError(422, 'SITENAME_RESTRICTIONS');
+    }
     // Check if site name has been used before, it should be unique
     const filter: Filter<Site> = {
       "where": {"siteName":site.siteName}
@@ -208,6 +216,12 @@ export class SitesController {
     })
     site: Site,
   ): Promise<void> {
+    // Exception: Site name format
+    const siteNameValidationPattern = this.regexpService.get('name_en_15');
+    if (!siteNameValidationPattern.test(site.siteName)) {
+      throw new CustomHttpError(422, 'SITENAME_RESTRICTIONS');
+    }
+    
     // Get ID of selected site
     const siteId = await this.getSiteId(siteName);
     // Check if site name has been used before, it should be unique

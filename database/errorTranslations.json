@@ -4,6 +4,7 @@
     "en": "File not found."
   },
   
+
   "USERNAME_RESTRICTIONS": {
     "zh": "名称仅包含字母数字_-，长度5-20个字符",
     "en": "Username contains 5-20 characters, including alphabet, number, ' _ ' and ' - '"
@@ -38,42 +39,58 @@
   },
 
 
+  "SITENAME_RESTRICTIONS": {
+    "zh": "Site 名称仅包含字母数字_-，长度小於15个字符",
+    "en": "Site name should not exceed 15 characters, including alphabet, number, ' _ ' and ' - '"
+  },
+  "CONTROLLERNAME_RESTRICTIONS": {
+    "zh": "控制器名称仅包含字母数字_-，长度小於15个字符",
+    "en": "Controller name should not exceed 15 characters, including alphabet, number, ' _ ' and ' - '"
+  },
   "INVALID_SITENAME": {
     "zh": "不合法的 Site 名称",
     "en": "Invalid Site Name."
   },
   "INVALID_CONTROLLERNAME": {
-    "zh": "不合法的 Controller 名称",
+    "zh": "不合法的 控制器 名称",
     "en": "Invalid Controller Name."
+  },
+  "INVALID_IP_ADDRESS": {
+    "zh": "不合法的 IP 位址",
+    "en": "Invalid IP Address."
   },
   "SITE_NOT_FOUND": {
     "zh": "未找到 Site",
     "en": "Site not found."
   },
   "CONTROLLER_NOT_FOUND": {
-    "zh": "未找到 Controller",
+    "zh": "未找到 控制器",
     "en": "Controller not found."
   },
   "SITENAME_ALREADY_EXISTS": {
     "zh": "Site 名称已存在",
     "en": "Site name already exists."
   },
+  "CONTROLLER_ALREADY_EXISTS": {
+    "zh": "控制器已存在",
+    "en": "Controller already exists."
+  },
 
 
   "INVALID_TOKEN": {
-    "zh": "不合法的 Token",
+    "zh": "不合法的令牌 Token",
     "en": "Invalid Token."
   },
   "TOKEN_NOT_FOUND": {
-    "zh": "未找到 Token",
+    "zh": "未找到令牌 Token",
     "en": "Token not found."
   },
   "GENERATING_TOKEN_ERROR": {
-    "zh": "产生 Token 错误",
+    "zh": "产生令牌 Token 错误",
     "en": "Generating token error."
   },
   "ENCODING_TOKEN_ERROR": {
-    "zh": "编码 Token 错误",
+    "zh": "编码令牌 Token 错误",
     "en": "Encoding token error."
   },
 
