@@ -5,7 +5,7 @@ const config = {
   name: 'mem',
   connector: 'memory',
   localStorage: 'mem',
-  file: '/home/manager/marsmiddleware/memdb'
+  file: './database/memoryDB.json'
 };
 
 // Observe application's life cycle to disconnect the datasource when
