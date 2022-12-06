@@ -61,13 +61,10 @@ const SignUpCredentialsSchema: SchemaObject = {
   required: ['username', 'password', 'role'],
   properties: {
     username: {
-      type: 'string',
-      minLength: 5,
-      maxLength: 15
+      type: 'string'
     },
     password: {
-      type: 'string',
-      minLength: 5
+      type: 'string'
     },
     role: {
       type: 'string'
@@ -105,13 +102,10 @@ const LoginCredentialsSchema: SchemaObject = {
   required: ['username', 'password'],
   properties: {
     username: {
-      type: 'string',
-      minLength: 5,
-      maxLength: 15
+      type: 'string'
     },
     password: {
-      type: 'string',
-      minLength: 5
+      type: 'string'
     },
   },
 };
@@ -178,12 +172,17 @@ export class MarsMiddleUserController {
     @requestBody(SignUpCredentialsRequestBody) newUserRequest: SignUpUserRequest,
   ): Promise<void> {
 
-    // Exception: Username
-    const validationPattern = this.regexpService.get('name_en_15');
-    if (newUserRequest.username && !validationPattern.test(newUserRequest.username)) {
-      throw new CustomHttpError(422, 'INVALID_USERNAME');
+    // Exception: Username format
+    const usernameValidationPattern = this.regexpService.get('username_5_20');
+    if (newUserRequest.username && !usernameValidationPattern.test(newUserRequest.username)) {
+      throw new CustomHttpError(422, 'USERNAME_RESTRICTIONS');
     }
-    // Exception: Role
+    // Exception: Password format
+    const pwdValidationPattern = this.regexpService.get('password_8');
+    if (newUserRequest.password && !pwdValidationPattern.test(newUserRequest.password)) {
+      throw new CustomHttpError(422, 'PASSWORD_RESTRICTIONS');
+    }
+    // Exception: Role format
     if (!Object.values(UserRoleType).includes(newUserRequest.role)) {
       throw new CustomHttpError(422, 'INVALID_ROLE');
     }
@@ -242,14 +241,10 @@ export class MarsMiddleUserController {
     @requestBody(LoginCredentialsRequestBody) userCredentials: LoginUserRequest,
   ): Promise<{username: string, role: UserRoleType, token: string}> {
 
-    const validationPattern = this.regexpService.get('name_en_15');
-    if (userCredentials.username && !validationPattern.test(userCredentials.username)) {
-      throw new CustomHttpError(403, 'INVALID_USERNAME_OR_PASSWORD');
-    }
-
-    // ensure the user exists, and the password is correct
     let token: string = '';
     let role: UserRoleType = UserRoleType.guest;
+
+    // ensure the user exists, and the password is correct
     await this.userService.verifyCredentials(userCredentials)
     .then( async (res) => {
       const user: User = res;
@@ -338,12 +333,21 @@ export class MarsMiddleUserController {
     @inject(SecurityBindings.USER)
     currentUserProfile: UserProfile,
   ): Promise<void> {
-    // check if the user exists
+    // Exception: Password format
+    const pwdValidationPattern = this.regexpService.get('password_8');
+    if (updateUserRequest.password && !pwdValidationPattern.test(updateUserRequest.password)) {
+      throw new CustomHttpError(422, 'PASSWORD_RESTRICTIONS');
+    }
+    // Exception: Role format
+    if (updateUserRequest.role && !Object.values(UserRoleType).includes(updateUserRequest.role)){
+      throw new CustomHttpError(422, 'INVALID_ROLE');
+    }
+    // Exception: check if the user exists
     const selectedUser = await this.userRepository.findById(userName);
     if (!selectedUser) {
       throw new HttpErrors.Unauthorized('INVALID_USERNAME');
     }
-    // If user is NOT administrator, he/ she can only update his/ her own user password.
+    // Exception: If user is NOT administrator, he/ she can only update his/ her own user password.
     const currentUserId = currentUserProfile[securityId];
     const currentUser = await this.userRepository.findById(currentUserId);
     if (currentUser.role != UserRoleType.administrator && currentUserId != userName) {
@@ -352,11 +356,7 @@ export class MarsMiddleUserController {
     if (currentUser.role != UserRoleType.administrator && updateUserRequest.role) { // guests can't update role setting
       throw new HttpErrors.Unauthorized(`INVALID_ROLE`,);
     }
-    // Exception: Role format
-    if (updateUserRequest.role && !Object.values(UserRoleType).includes(updateUserRequest.role)){
-      throw new CustomHttpError(422, 'INVALID_ROLE');
-    }
-    // At least one administrator is required
+    // Exception: At least one administrator is required
     if (selectedUser.role == UserRoleType.administrator && updateUserRequest.role != UserRoleType.administrator) {
       await this.checkMoreThanOneAdministratorExists();
     }

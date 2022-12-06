@@ -4,7 +4,14 @@
     "en": "File not found."
   },
   
-  
+  "USERNAME_RESTRICTIONS": {
+    "zh": "名称仅包含字母数字_-，长度5-20个字符",
+    "en": "Username contains 5-20 characters, including alphabet, number, ' _ ' and ' - '"
+  },
+  "PASSWORD_RESTRICTIONS": {
+    "zh": "密码限制：最少8个字符，至少包含一个大写字母，一个小写字母，一个数字和一个特殊字符",
+    "en": "Password Restrictions: Minimum 8 characters, at least one uppercase letter, one lowercase letter, one number and one special character"
+  },
   "INVALID_USERNAME": {
     "zh": "不合法的用戶名称",
     "en": "Invalid Username."
