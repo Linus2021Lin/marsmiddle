@@ -80,6 +80,8 @@ export const SignUpCredentialsRequestBody = {
   },
 };
 
+const MAXIMUM_NUMBER_OF_TOKENS: number = 30;
+
 // For LogIn
 @model()
 export class LoginUserRequest extends Entity {
@@ -254,6 +256,7 @@ export class MarsMiddleUserController {
       // create a JSON Web Token based on the user profile
       token = await this.jwtService.generateToken(userProfile);
       // Add token Info into User Info in database
+      if (user.tokens.length >= MAXIMUM_NUMBER_OF_TOKENS) { user.tokens.shift(); }
       const _tokens: string[] = user.tokens.concat(token);
       await this.userRepository.updateById(user.id, {tokens: _tokens});
     })
