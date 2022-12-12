@@ -65,6 +65,18 @@ export class SiteControllerController {
     }
   }
 
+  async checkIpAddressExists(ipAddress: string): Promise<void> {
+    const _filter: Filter<Controller> = {
+      "where": {"ipAddress": ipAddress}
+    }
+    await this.controllerRepository.find(_filter)
+    .then( (res) => {
+      if (res.length > 0) {
+        throw new CustomHttpError(409, 'IP_ADDRESS_ALREADY_EXISTS');
+      }
+    })
+  }
+
   @authenticate('admin-jwt')
   @post('/sites/{siteName}/controllers')
   @response(200, {
@@ -106,14 +118,17 @@ export class SiteControllerController {
     // Get ID of selected site
     const siteId = await this.getSiteId(siteName);
 
-    // Check if controller already exist
+    // Check if controller already exists but not return 'not found' error
     const _filter: Filter<Controller> = {
       "where": {"controllerName": controller.controllerName}
     };
-    const ctrl = await this.siteRepository.controllers(siteId).find(_filter);
+    const ctrl = await this.controllerRepository.find(_filter);
     if (ctrl.length > 0) {
-      throw new CustomHttpError(404, 'CONTROLLER_ALREADY_EXISTS');
+      throw new CustomHttpError(409, 'CONTROLLER_ALREADY_EXISTS');
     }
+
+    // Check if IP address already exists
+    await this.checkIpAddressExists(controller.ipAddress);
 
     // encode password
     controller.loginPassword = encrypt(controller.loginPassword);
@@ -195,8 +210,14 @@ export class SiteControllerController {
 
     // Get ID of selected site
     const siteId = await this.getSiteId(siteName);
+
     // Check if controller exists
     await this.checkControllerExists(siteId, controllerName);
+
+    // Check if IP address already exists
+    if (controller.ipAddress) {
+      await this.checkIpAddressExists(controller.ipAddress);
+    }
 
     // encode password
     if (controller.loginPassword) {

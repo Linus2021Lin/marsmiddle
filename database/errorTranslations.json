@@ -72,8 +72,12 @@
     "en": "Site name already exists."
   },
   "CONTROLLER_ALREADY_EXISTS": {
-    "zh": "控制器已存在",
-    "en": "Controller already exists."
+    "zh": "控制器已存在或已设定于其它 Site 中",
+    "en": "Controller already exists or has been set in other Site."
+  },
+  "IP_ADDRESS_ALREADY_EXISTS": {
+    "zh": "IP 位址已存在或已设定于其它 Site 中",
+    "en": "IP Address already exists or has been set in other Site."
   },
 
 
