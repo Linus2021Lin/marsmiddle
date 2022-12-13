@@ -52,11 +52,13 @@ export class MarsConnectorService {
     });
   }
 
-  async getCpuRamData(controllerModel: Controller): Promise<Controller> {
+  async getCpuRamDevicesData(controllerModel: Controller): Promise<Controller> {
     try {
       controllerModel.loginStatus = false;
       controllerModel.cpuIdle = -1;
       controllerModel.ramUsage = -1;
+      controllerModel.deviceCounts = -1;
+      controllerModel.availableDeviceCounts = -1;
 
       const loginRes = await this.checkIpConnectivity(controllerModel, undefined, undefined, 20000) //Class: http.IncomingMessage
       
@@ -71,7 +73,7 @@ export class MarsConnectorService {
           controllerModel.ipAddress, loginRes.headers["mars_g_session_id"], cpuApiPath
         );
         const cpuData = JSON.parse(cpuRes.toString());
-        if (cpuData.cpu.length != 0 && cpuData.cpu[0].resources.length != 0) {
+        if (cpuData.cpu.length > 0 && cpuData.cpu[0].resources.length > 0) {
               //console.log("result: " + cpu.cpu[0].resources[0].idle_percent);
               controllerModel.cpuIdle = cpuData.cpu[0].resources[0].idle_percent;
         }
@@ -82,9 +84,20 @@ export class MarsConnectorService {
           controllerModel.ipAddress, loginRes.headers["mars_g_session_id"], ramApiPath
         );
         const ramData = JSON.parse(ramRes.toString());
-        if (ramData.memory.length != 0 && ramData.memory[0].resources.length != 0) {
+        if (ramData.memory.length > 0 && ramData.memory[0].resources.length > 0) {
               //console.log("result: " + mem.memory[0].resources[0].used_percent);
               controllerModel.ramUsage = ramData.memory[0].resources[0].used_percent;
+        }
+
+        // Device Data
+        const devicesApiPath = this.marsApiPathService.getDevicesStatusPath();
+        const devicesRes = await this.getResponseByPath(
+          controllerModel.ipAddress, loginRes.headers["mars_g_session_id"], devicesApiPath
+        );
+        const devicesData = JSON.parse(devicesRes.toString()).devices;
+        if (devicesData.length >= 0) {
+          controllerModel.deviceCounts = devicesData.length;
+          controllerModel.availableDeviceCounts = devicesData.filter((device: any) => {device.avalible == true}).length;
         }
       } else {
         console.log(

@@ -69,6 +69,19 @@ export class Controller extends Entity {
   })
   ramUsage?: number;
 
+  // only for response, should not save into DB
+  @property({
+    type: 'number',
+    // default: -1,
+  })
+  deviceCounts?: number;
+
+  // only for response, should not save into DB
+  @property({
+    type: 'number',
+    // default: -1,
+  })
+  availableDeviceCounts?: number;
 
   constructor(data?: Partial<Controller>) {
     super(data);

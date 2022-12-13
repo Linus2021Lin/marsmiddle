@@ -84,7 +84,7 @@ export class SiteControllerController {
     content: {
       'application/json': {
         schema: getModelSchemaRef(Controller, {
-          exclude: ['siteId', 'loginPassword', 'loginStatus', 'cpuIdle', 'ramUsage']
+          exclude: ['siteId', 'loginPassword', 'loginStatus', 'cpuIdle', 'ramUsage', 'deviceCounts', 'availableDeviceCounts']
         })
       }
     },
@@ -96,7 +96,7 @@ export class SiteControllerController {
         'application/json': {
           schema: getModelSchemaRef(Controller, {
             title: 'NewControllerInSite',
-            exclude: ['siteId', 'siteName', 'loginStatus', 'cpuIdle', 'ramUsage'],
+            exclude: ['siteId', 'siteName', 'loginStatus', 'cpuIdle', 'ramUsage', 'deviceCounts', 'availableDeviceCounts'],
             optional: ['description']
           }),
         },
@@ -164,7 +164,7 @@ export class SiteControllerController {
   ): Promise<Controller> {
     // Get ID of selected site
     const siteId = await this.getSiteId(siteName);
-    // set value of loginStatus, cpuIdle, ramUsage
+    // set value of loginStatus, cpuIdle, ramUsage, deviceCounts, availableDeviceCounts
     const _filter: Filter<Controller> = {
       "where": {"controllerName": controllerName}
     }
@@ -173,7 +173,7 @@ export class SiteControllerController {
       throw new CustomHttpError(404, 'CONTROLLER_NOT_FOUND');
     }
     response[0].siteName = siteName; 
-    response[0] = await this.marsConnectorService.getCpuRamData(response[0]);
+    response[0] = await this.marsConnectorService.getCpuRamDevicesData(response[0]);
 
     return response[0];
   }
@@ -194,7 +194,7 @@ export class SiteControllerController {
         'application/json': {
           schema: getModelSchemaRef(Controller, {
             partial: true,
-            exclude: ['controllerName', 'siteId', 'siteName', 'loginStatus', 'cpuIdle', 'ramUsage']
+            exclude: ['controllerName', 'siteId', 'siteName', 'loginStatus', 'cpuIdle', 'ramUsage', 'deviceCounts', 'availableDeviceCounts']
           })
         }
       },

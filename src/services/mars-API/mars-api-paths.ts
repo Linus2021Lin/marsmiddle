@@ -13,4 +13,8 @@ export class MarsApiPathService {
     return `/mars/analyzer/v1/timerangebar_all/ctrl/${type}/${startTime}/${endTime}/${interval}`;
   }
 
+  getDevicesStatusPath(): string {
+    return `/mars/v1/devices`;
+  }
+
 }

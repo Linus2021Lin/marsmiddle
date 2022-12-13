@@ -138,11 +138,11 @@ export class SitesController {
                               })
                               let siteLevelPromiseArr = [];
                               for (let siteIndex = 0; siteIndex < siteArr.length; siteIndex++) {
-                                // set value of loginStatus, cpuIdle, ramUsage for each controllers of sites
+                                // set value of loginStatus, cpuIdle, ramUsage, deviceCounts, availableDeviceCounts for each controllers of sites
                                 let  crtlLevelPromiseArr = [];
                                 for (let ctrlIndex = 0; ctrlIndex < siteArr[siteIndex].controllers.length; ctrlIndex++) {
                                   crtlLevelPromiseArr.push(
-                                    this.marsConnectorService.getCpuRamData(siteArr[siteIndex].controllers[ctrlIndex])
+                                    this.marsConnectorService.getCpuRamDevicesData(siteArr[siteIndex].controllers[ctrlIndex])
                                   );
                                 }
                                 let ctrlPromiseAll = Promise.all(crtlLevelPromiseArr).then((ctrlResArr) => {
@@ -180,11 +180,11 @@ export class SitesController {
     const response = this.siteRepository.findById(siteId, filter)
                       .then(async (res) => {
                         if (!res.controllers) { res['controllers'] = []; }
-                        // set value of loginStatus, cpuIdle, ramUsage
+                        // set value of loginStatus, cpuIdle, ramUsage, deviceCounts, availableDeviceCounts
                         let  promiseArr = [];
                         for (let i = 0; i < res.controllers.length; i++) {
-                          promiseArr.push(this.marsConnectorService.getCpuRamData(res.controllers[i]));
-                          // res.controllers[i] = await this.marsConnectorService.getCpuRamData(res.controllers[i]);
+                          promiseArr.push(this.marsConnectorService.getCpuRamDevicesData(res.controllers[i]));
+                          // res.controllers[i] = await this.marsConnectorService.getCpuRamDevicesData(res.controllers[i]);
                         }
                         await Promise.all(promiseArr).then((resArr) => {
                           for (let i = 0; i < res.controllers.length; i++) {
@@ -221,7 +221,7 @@ export class SitesController {
     if (!siteNameValidationPattern.test(site.siteName)) {
       throw new CustomHttpError(422, 'SITENAME_RESTRICTIONS');
     }
-    
+
     // Get ID of selected site
     const siteId = await this.getSiteId(siteName);
     // Check if site name has been used before, it should be unique
