@@ -55,13 +55,29 @@ export class SiteControllerController {
     return siteId;
   }
 
-  async checkControllerExists(siteId: string, controllerName: string): Promise<void> {
-    const _filter: Filter<Controller> = {
+  async getControllerId(siteId: string, controllerName: string): Promise<string> {
+    let controllerId: string = '';
+    const filter: Filter<Controller> = {
       "where": {"controllerName": controllerName}
     }
-    const response = await this.siteRepository.controllers(siteId).find(_filter);
-    if (response.length === 0) {
-      throw new CustomHttpError(404, 'CONTROLLER_NOT_FOUND');
+    await this.siteRepository.controllers(siteId).find(filter)
+    .then( (res) => {
+      if (res) {
+        controllerId = res[0].controllerId;
+      } else {
+        throw new CustomHttpError(404, 'CONTROLLER_NOT_FOUND');
+      }
+    })
+    return controllerId;
+  }
+
+  async checkControllerNameExists(controllerName: string): Promise<void> {
+    const _filter: Filter<Controller> = {
+      "where": {"controllerName": controllerName}
+    };
+    const controllersWithTheName = await this.controllerRepository.find(_filter);
+    if (controllersWithTheName.length > 0) {
+      throw new CustomHttpError(409, 'CONTROLLER_ALREADY_EXISTS');
     }
   }
 
@@ -69,12 +85,10 @@ export class SiteControllerController {
     const _filter: Filter<Controller> = {
       "where": {"ipAddress": ipAddress}
     }
-    await this.controllerRepository.find(_filter)
-    .then( (res) => {
-      if (res.length > 0) {
+    const controllersWithTheIP = await this.controllerRepository.find(_filter);
+    if (controllersWithTheIP.length > 0) {
         throw new CustomHttpError(409, 'IP_ADDRESS_ALREADY_EXISTS');
-      }
-    })
+    }
   }
 
   @authenticate('admin-jwt')
@@ -118,22 +132,15 @@ export class SiteControllerController {
     // Get ID of selected site
     const siteId = await this.getSiteId(siteName);
 
-    // Check if controller already exists but not return 'not found' error
-    const _filter: Filter<Controller> = {
-      "where": {"controllerName": controller.controllerName}
-    };
-    const ctrl = await this.controllerRepository.find(_filter);
-    if (ctrl.length > 0) {
-      throw new CustomHttpError(409, 'CONTROLLER_ALREADY_EXISTS');
-    }
+    // Check if input new controller name already exists
+    await this.checkControllerNameExists(controller.controllerName);
 
-    // Check if IP address already exists
+    // Check if input new IP address already exists
     await this.checkIpAddressExists(controller.ipAddress);
 
     // encode password
     controller.loginPassword = encrypt(controller.loginPassword);
 
-    // controllerName is ID in DB, so it is unique and not be overwrite
     const response = this.siteRepository.controllers(siteId).create(controller)
                       .then((_controller) => {
                             _controller.siteName = siteName; 
@@ -162,16 +169,20 @@ export class SiteControllerController {
     @param.path.string('controllerName') controllerName: string,
     // @param.query.object('filter') filter?: Filter<Controller>,
   ): Promise<Controller> {
+
     // Get ID of selected site
     const siteId = await this.getSiteId(siteName);
-    // set value of loginStatus, cpuIdle, ramUsage, deviceCounts, availableDeviceCounts
+
+    // Get ID of selected controller
+    const ctrlId = await this.getControllerId(siteId, controllerName);
+
+    // Get controller DATA
     const _filter: Filter<Controller> = {
-      "where": {"controllerName": controllerName}
+      "where": {"controllerId": ctrlId}
     }
     const response = await this.siteRepository.controllers(siteId).find(_filter);
-    if (response.length === 0) {
-      throw new CustomHttpError(404, 'CONTROLLER_NOT_FOUND');
-    }
+
+    // set value of loginStatus, cpuIdle, ramUsage, deviceCounts, availableDeviceCounts
     response[0].siteName = siteName; 
     response[0] = await this.marsConnectorService.getCpuRamDevicesData(response[0]);
 
@@ -194,13 +205,19 @@ export class SiteControllerController {
         'application/json': {
           schema: getModelSchemaRef(Controller, {
             partial: true,
-            exclude: ['controllerName', 'siteId', 'siteName', 'loginStatus', 'cpuIdle', 'ramUsage', 'deviceCounts', 'availableDeviceCounts']
+            exclude: ['siteId', 'siteName', 'loginStatus', 'cpuIdle', 'ramUsage', 'deviceCounts', 'availableDeviceCounts']
           })
         }
       },
     })
     controller: Partial<Controller>,
   ): Promise<void> {
+
+    // Exception: Controller name format
+    const ctrlNameValidationPattern = this.regexpService.get('name_en_15');
+    if (controller.controllerName && !ctrlNameValidationPattern.test(controller.controllerName)) {
+      throw new CustomHttpError(422, 'CONTROLLERNAME_RESTRICTIONS');
+    }
 
     // Exception: IP format
     const ipValidationPattern = this.regexpService.get('ipv4');
@@ -211,10 +228,15 @@ export class SiteControllerController {
     // Get ID of selected site
     const siteId = await this.getSiteId(siteName);
 
-    // Check if controller exists
-    await this.checkControllerExists(siteId, controllerName);
+    // Get ID of selected controller
+    const ctrlId = await this.getControllerId(siteId, controllerName);
 
-    // Check if IP address already exists
+    // Check if input new controller name already exists
+    if (controller.controllerName) {
+      await this.checkControllerNameExists(controller.controllerName);
+    }
+
+    // Check if input new IP address already exists
     if (controller.ipAddress) {
       await this.checkIpAddressExists(controller.ipAddress);
     }
@@ -225,7 +247,7 @@ export class SiteControllerController {
     }
 
     const _filter: Filter<Controller> = {
-      "where": {"controllerName": controllerName}
+      "where": {"controllerId": ctrlId}
     };
     // In loopback4, Update: apply to partial fields(PATCH), Replace: apply to all fields(PUT)
     await this.siteRepository.controllers(siteId).patch(controller, _filter.where);
@@ -245,11 +267,11 @@ export class SiteControllerController {
   ): Promise<void> {
     // Get ID of selected site
     const siteId = await this.getSiteId(siteName);
-    // Check if controller exists
-    await this.checkControllerExists(siteId, controllerName);
+    // Get ID of selected controller
+    const ctrlId = await this.getControllerId(siteId, controllerName);
     
     const _filter: Filter<Controller> = {
-      "where": {"controllerName": controllerName}
+      "where": {"controllerId": ctrlId}
     };
     await this.siteRepository.controllers(siteId).delete(_filter.where);
   }

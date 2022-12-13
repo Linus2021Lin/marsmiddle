@@ -5,7 +5,13 @@ export class Controller extends Entity {
   @property({
     type: 'string',
     id: true,
-    generated: false,
+    generated: true,
+    hidden: true,
+  })
+  controllerId: string;
+
+  @property({
+    type: 'string',
     required: true,
   })
   controllerName: string;
