@@ -17,4 +17,8 @@ export class MarsApiPathService {
     return `/mars/v1/devices`;
   }
 
+  getControllerClusterNodes(): string {
+    return `/mars/v1/cluster`;
+  }
+
 }

@@ -1,6 +1,10 @@
 import {inject} from '@loopback/core';
+import {Filter, repository} from '@loopback/repository';
 import {Site, Controller} from '../../models';
 import {MarsApiPathService, CMDtype} from '../mars-API/mars-api-paths';
+import {RegexpService} from '../../tools/regexp/regexp';
+import {SiteRepository, ControllerRepository} from '../../repositories';
+import {SiteControllerController} from '../../controllers';
 
 const { encrypt, decrypt } = require('../../tools/crypto/crypto');
 const http = require('http');
@@ -10,6 +14,10 @@ export class MarsConnectorService {
 	constructor(
     @inject('marsApiPathService')
     private marsApiPathService: MarsApiPathService,
+    @inject('regexpService')
+    private regexpService: RegexpService,
+    @repository(SiteRepository) protected siteRepository: SiteRepository,
+    @repository(ControllerRepository) protected controllerRepository: ControllerRepository
   ) { }
 
   checkIpConnectivity(
@@ -50,6 +58,46 @@ export class MarsConnectorService {
       setTimeout(() => { req.abort(); }, pendingTime);
 
     });
+  }
+
+  async updateControllerClusterNodes(controllerModel: Controller): Promise<void> {
+    try {
+      const loginRes = await this.checkIpConnectivity(controllerModel, undefined, undefined, 20000) //Class: http.IncomingMessage
+      if (loginRes.statusCode == 200) {
+        // check Cluster Nodes of Controller
+        const clusterApiPath = this.marsApiPathService.getControllerClusterNodes();
+        const clusterRes = await this.getResponseByPath(controllerModel.ipAddress, loginRes.headers["mars_g_session_id"], clusterApiPath);
+        const clusterNodesData = JSON.parse(clusterRes.toString()).nodes;
+        for (let index = 0; index < clusterNodesData.length; index++) {
+
+          const node = clusterNodesData[index];
+          const nodeIp = node.ip;
+
+          const ipValidationPattern = this.regexpService.get('ipv4');
+
+          const _filter: Filter<Controller> = {"where": {"ipAddress": nodeIp}};
+          const controllersWithTheIP = await this.controllerRepository.find(_filter);
+
+          if (ipValidationPattern.test(nodeIp) && (controllersWithTheIP.length == 0)) {
+            const clusterController = {
+              "controllerName": nodeIp,
+              "ipAddress": nodeIp,
+              "loginAccount": controllerModel.loginAccount,
+              "loginPassword": controllerModel.loginPassword,
+              "description": `${controllerModel.controllerName}'s node`
+            }
+            await this.siteRepository.controllers(controllerModel.siteId).create(clusterController);
+          }
+        }
+
+      }
+    } catch (err) {
+      console.log(
+        `> Login Controller: ${controllerModel.controllerName} >> ERROR\n` +
+        `> IP: ${controllerModel.ipAddress}, LoginAcc: ${controllerModel.loginAccount}, LoginPwd: ${decrypt(controllerModel.loginPassword)}\n` +
+        `> ${err}\n`
+      );
+    }
   }
 
   async getCpuRamDevicesData(controllerModel: Controller): Promise<Controller> {

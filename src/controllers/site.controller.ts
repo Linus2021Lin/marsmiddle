@@ -131,6 +131,26 @@ export class SitesController {
     const filter = {
       "include": ['controllers']
     };
+    // Update Controller Cluster Nodes
+    const beforeUpdatedSitesArray = await this.siteRepository.find(filter);
+    beforeUpdatedSitesArray.forEach( (site) => {
+      if (!site.controllers) { site['controllers'] = []; }
+    })
+    let siteLevelPromiseArr = [];
+    for (let siteIndex = 0; siteIndex < beforeUpdatedSitesArray.length; siteIndex++) {
+      // set value of loginStatus, cpuIdle, ramUsage, deviceCounts, availableDeviceCounts for each controllers of sites
+      let  crtlLevelPromiseArr = [];
+      for (let ctrlIndex = 0; ctrlIndex < beforeUpdatedSitesArray[siteIndex].controllers.length; ctrlIndex++) {
+        crtlLevelPromiseArr.push(
+          this.marsConnectorService.updateControllerClusterNodes(beforeUpdatedSitesArray[siteIndex].controllers[ctrlIndex])
+        );
+      }
+      let ctrlPromiseAll = Promise.all(crtlLevelPromiseArr);
+      siteLevelPromiseArr.push(ctrlPromiseAll);
+    }
+    await Promise.all(siteLevelPromiseArr);
+
+    // Get Sites Data
     const sites = this.siteRepository.find(filter)
                       .then(async (siteArr) => {
                               siteArr.forEach( (site) => {
@@ -177,6 +197,16 @@ export class SitesController {
     const filter = {
       "include": ['controllers']
     };
+    // Update Controller Cluster Nodes
+    const beforeUpdatedSite = await this.siteRepository.findById(siteId, filter);
+    if (!beforeUpdatedSite.controllers) { beforeUpdatedSite['controllers'] = []; }
+    let promiseArr = [];
+    for (let i = 0; i < beforeUpdatedSite.controllers.length; i++) {
+      promiseArr.push(this.marsConnectorService.updateControllerClusterNodes(beforeUpdatedSite.controllers[i]));
+    }
+    await Promise.all(promiseArr);
+    
+    // Get Site Data
     const response = this.siteRepository.findById(siteId, filter)
                       .then(async (res) => {
                         if (!res.controllers) { res['controllers'] = []; }
@@ -184,7 +214,6 @@ export class SitesController {
                         let  promiseArr = [];
                         for (let i = 0; i < res.controllers.length; i++) {
                           promiseArr.push(this.marsConnectorService.getCpuRamDevicesData(res.controllers[i]));
-                          // res.controllers[i] = await this.marsConnectorService.getCpuRamDevicesData(res.controllers[i]);
                         }
                         await Promise.all(promiseArr).then((resArr) => {
                           for (let i = 0; i < res.controllers.length; i++) {
