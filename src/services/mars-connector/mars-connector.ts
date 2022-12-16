@@ -84,7 +84,7 @@ export class MarsConnectorService {
               "ipAddress": nodeIp,
               "loginAccount": controllerModel.loginAccount,
               "loginPassword": controllerModel.loginPassword,
-              "description": `${controllerModel.controllerName}'s node`
+              "description": `Cluster Node of ${controllerModel.controllerName}`
             }
             await this.siteRepository.controllers(controllerModel.siteId).create(clusterController);
           }
