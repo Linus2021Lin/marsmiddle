@@ -32,11 +32,28 @@ export function getSiteModelResSchemaRef() {
                                           }
                                     );
   const excludeControllerProperties: (keyof Controller)[] = [
-    'siteName', 'loginPassword'
+    'siteName', 'controllerId', 'loginPassword', 'errorLog'
   ];
   excludeControllerProperties.forEach((key) => {
     if (schemaRef.definitions.ControllerExcluding_siteId_WithRelations.properties){
       delete schemaRef.definitions.ControllerExcluding_siteId_WithRelations.properties[key];
+    }
+  })
+  return schemaRef;
+}
+
+export function getErrorLogOfControllersOfAllSitesModelResSchemaRef() {
+  let schemaRef = getModelSchemaRef(Site, {
+                                            includeRelations: true,
+                                            exclude: ['siteId', 'siteDescription']
+                                          }
+                                    );
+  const excludeControllerProperties: (keyof Controller)[] = [
+    'siteName', 'controllerId', 'description', 'loginPassword', 'loginStatus', 'cpuIdle', 'ramUsage', 'deviceCounts', 'availableDeviceCounts'
+  ];
+  excludeControllerProperties.forEach((key) => {
+    if (schemaRef.definitions['ControllerExcluding_siteId-siteDescription_WithRelations'].properties){
+      delete schemaRef.definitions['ControllerExcluding_siteId-siteDescription_WithRelations'].properties[key];
     }
   })
   return schemaRef;
@@ -138,7 +155,6 @@ export class SitesController {
     })
     let siteLevelPromiseArr = [];
     for (let siteIndex = 0; siteIndex < beforeUpdatedSitesArray.length; siteIndex++) {
-      // set value of loginStatus, cpuIdle, ramUsage, deviceCounts, availableDeviceCounts for each controllers of sites
       let  crtlLevelPromiseArr = [];
       for (let ctrlIndex = 0; ctrlIndex < beforeUpdatedSitesArray[siteIndex].controllers.length; ctrlIndex++) {
         crtlLevelPromiseArr.push(
@@ -287,17 +303,106 @@ export class SitesController {
     await this.siteRepository.deleteById(siteId);
   }
 
+  // @authenticate('jwt')
+  // @get('/sites/count')
+  // @response(200, {
+  //   description: 'Site model count',
+  //   content: {'application/json': {schema: CountSchema}},
+  // })
+  // async count(
+  //   // @param.where(Site) where?: Where<Site>,
+  // ): Promise<Count> {
+  //   // return this.siteRepository.count(where);
+  //   return this.siteRepository.count();
+  // }
+
   @authenticate('jwt')
-  @get('/sites/count')
+  @get('/sites/errorLog')
   @response(200, {
-    description: 'Site model count',
-    content: {'application/json': {schema: CountSchema}},
+    description: 'Array of Site model with error log instances',
+    content: {
+      'application/json': {
+        schema: {
+          type: 'array',
+          items: getErrorLogOfControllersOfAllSitesModelResSchemaRef(),
+        },
+      },
+    },
   })
-  async count(
-    // @param.where(Site) where?: Where<Site>,
-  ): Promise<Count> {
-    // return this.siteRepository.count(where);
-    return this.siteRepository.count();
+  async getErrorLogOfControllersOfAllSites(
+    @param.query.number('hour', {required: true, description: 'Get log from the last hours'}) lastHours: number,
+    @param.query.number('count', {required: true, description: 'History entry count of log'}) logCount: number
+  ): Promise<Site[]> {
+    const filter = {
+      "include": ['controllers']
+    };
+    // Get Log of Controllers of all Sites Data
+    const sites = this.siteRepository.find(filter)
+                      .then(async (siteArr) => {
+                              siteArr.forEach( (site) => {
+                                if (!site.controllers) { site['controllers'] = []; }
+                              })
+                              let siteLevelPromiseArr = [];
+                              for (let siteIndex = 0; siteIndex < siteArr.length; siteIndex++) {
+                                // set error log for each controllers of sites
+                                let  crtlLevelPromiseArr = [];
+                                for (let ctrlIndex = 0; ctrlIndex < siteArr[siteIndex].controllers.length; ctrlIndex++) {
+                                  crtlLevelPromiseArr.push(
+                                    this.marsConnectorService.getControllerLog(siteArr[siteIndex].controllers[ctrlIndex], lastHours, logCount)
+                                  );
+                                }
+                                let ctrlPromiseAll = Promise.all(crtlLevelPromiseArr).then((ctrlResArr) => {
+                                  for (let i = 0; i < siteArr[siteIndex].controllers.length; i++) {
+                                    siteArr[siteIndex].controllers[i] = ctrlResArr[i];
+                                    delete siteArr[siteIndex].siteDescription;
+                                  }
+                                })
+                                siteLevelPromiseArr.push(ctrlPromiseAll);
+                              }
+                              await Promise.all(siteLevelPromiseArr)
+                              return siteArr;
+                      })
+    return sites;
   }
 
+  @authenticate('jwt')
+  @get('/sites/{siteName}/errorLog')
+  @response(200, {
+    description: 'Site model with error log instances',
+    content: {
+      'application/json': {
+        schema: getErrorLogOfControllersOfAllSitesModelResSchemaRef(),
+      },
+    },
+  })
+  async getErrorLogOfControllersOfSpecifiedSite(
+    @param.path.string('siteName') siteName: string,
+    @param.query.number('hour', {required: true, description: 'Get log from the last hours'}) lastHours: number,
+    @param.query.number('count', {required: true, description: 'History entry count of log'}) logCount: number,
+  ): Promise<Site> {
+    // Get ID of selected site
+    const siteId = await this.getSiteId(siteName);
+    const filter = {
+      "include": ['controllers']
+    };
+    // Get Log of Controllers of Site Data
+    const response = this.siteRepository.findById(siteId, filter)
+                      .then(async (res) => {
+                        if (!res.controllers) { res['controllers'] = []; }
+                        // set error log for each controllers of sites
+                        let  promiseArr = [];
+                        for (let i = 0; i < res.controllers.length; i++) {
+                          promiseArr.push(this.marsConnectorService.getControllerLog(res.controllers[i], lastHours, logCount));
+                        }
+                        await Promise.all(promiseArr).then((resArr) => {
+                          for (let i = 0; i < res.controllers.length; i++) {
+                            res.controllers[i] = resArr[i];
+                            delete res.siteDescription;
+                          }
+                        })
+                        return res;
+                      })
+    return response;
+  }
+  
 }

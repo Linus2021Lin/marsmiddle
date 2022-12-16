@@ -21,4 +21,12 @@ export class MarsApiPathService {
     return `/mars/v1/cluster`;
   }
 
+  getControllerLog(startTime: string, totalCount: number, matchString: string, fileSource: string): string {
+    return `/mars/utility/logs/v1/controller?start=${startTime}&number=${totalCount}&match=${matchString}&source=${encodeURIComponent(fileSource)}`;
+  }
+
+  getControllerLogSourceFile(): string {
+    return `/mars/utility/logs/v1/source_files`;
+  }
+
 }

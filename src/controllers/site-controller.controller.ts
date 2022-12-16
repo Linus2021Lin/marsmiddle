@@ -62,7 +62,7 @@ export class SiteControllerController {
     }
     await this.siteRepository.controllers(siteId).find(filter)
     .then( (res) => {
-      if (res) {
+      if (res.length > 0) {
         controllerId = res[0].controllerId;
       } else {
         throw new CustomHttpError(404, 'CONTROLLER_NOT_FOUND');
@@ -98,7 +98,7 @@ export class SiteControllerController {
     content: {
       'application/json': {
         schema: getModelSchemaRef(Controller, {
-          exclude: ['siteId', 'loginPassword', 'loginStatus', 'cpuIdle', 'ramUsage', 'deviceCounts', 'availableDeviceCounts']
+          exclude: ['siteId', 'controllerId', 'loginPassword', 'loginStatus', 'cpuIdle', 'ramUsage', 'deviceCounts', 'availableDeviceCounts', 'errorLog']
         })
       }
     },
@@ -110,7 +110,7 @@ export class SiteControllerController {
         'application/json': {
           schema: getModelSchemaRef(Controller, {
             title: 'NewControllerInSite',
-            exclude: ['siteId', 'siteName', 'loginStatus', 'cpuIdle', 'ramUsage', 'deviceCounts', 'availableDeviceCounts'],
+            exclude: ['siteId', 'siteName', 'controllerId', 'loginStatus', 'cpuIdle', 'ramUsage', 'deviceCounts', 'availableDeviceCounts', 'errorLog'],
             optional: ['description']
           }),
         },
@@ -157,7 +157,7 @@ export class SiteControllerController {
         content: {
           'application/json': {
             schema: getModelSchemaRef(Controller, {
-              exclude: ['siteId', 'loginPassword']
+              exclude: ['siteId', 'controllerId', 'loginPassword', 'errorLog']
             })
           },
         },
@@ -205,7 +205,7 @@ export class SiteControllerController {
         'application/json': {
           schema: getModelSchemaRef(Controller, {
             partial: true,
-            exclude: ['siteId', 'siteName', 'loginStatus', 'cpuIdle', 'ramUsage', 'deviceCounts', 'availableDeviceCounts']
+            exclude: ['siteId', 'siteName', 'controllerId', 'loginStatus', 'cpuIdle', 'ramUsage', 'deviceCounts', 'availableDeviceCounts', 'errorLog']
           })
         }
       },
@@ -275,4 +275,46 @@ export class SiteControllerController {
     };
     await this.siteRepository.controllers(siteId).delete(_filter.where);
   }
+
+  @authenticate('jwt')
+  @get('/sites/{siteName}/controllers/{controllerName}/errorLog', {
+    responses: {
+      '200': {
+        description: 'Controller error log of the Site',
+        content: {
+          'application/json': {
+            schema: getModelSchemaRef(Controller, {
+              exclude: ['siteId', 'controllerId', 'description', 'loginPassword', 'loginStatus', 'cpuIdle', 'ramUsage', 'deviceCounts', 'availableDeviceCounts']
+            })
+          },
+        },
+      },
+    },
+  })
+  async getErrorLogOfSpecifiedController(
+    @param.path.string('siteName') siteName: string,
+    @param.path.string('controllerName') controllerName: string,
+    @param.query.number('hour', {required: true, description: 'Get log from the last hours'}) lastHours: number,
+    @param.query.number('count', {required: true, description: 'History entry count of log'}) logCount: number,
+  ): Promise<Controller> {
+
+    // Get ID of selected site
+    const siteId = await this.getSiteId(siteName);
+
+    // Get ID of selected controller
+    const ctrlId = await this.getControllerId(siteId, controllerName);
+
+    // Get controller DATA
+    const _filter: Filter<Controller> = {
+      "where": {"controllerId": ctrlId}
+    }
+    const response = await this.siteRepository.controllers(siteId).find(_filter);
+
+    // set value of loginStatus, cpuIdle, ramUsage, deviceCounts, availableDeviceCounts
+    response[0].siteName = siteName; 
+    response[0] = await this.marsConnectorService.getControllerLog(response[0], lastHours, logCount);
+
+    return response[0];
+  }
+
 }

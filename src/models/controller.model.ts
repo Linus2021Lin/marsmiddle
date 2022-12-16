@@ -89,6 +89,13 @@ export class Controller extends Entity {
   })
   availableDeviceCounts?: number;
 
+  // only for response, should not save into DB
+  @property({
+    type: 'array',
+    itemType: 'string',
+  })
+  errorLog?: string[];
+
   constructor(data?: Partial<Controller>) {
     super(data);
   }

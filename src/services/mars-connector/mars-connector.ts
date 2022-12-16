@@ -164,6 +164,52 @@ export class MarsConnectorService {
     return controllerModel;
   }
 
+  async getControllerLog(controllerModel: Controller, lastHours: number, logCount: number): Promise<Omit<Controller, 'description'>> {
+    const lastSeconds: number = lastHours*60*60;
+    const startTime: string = this.getCurrentUTCTimestamp(-lastSeconds).replace('Z', '.000Z'); // 1 day before
+    const matchString: string ='error';
+    let fileSource: string = '';
+    try {
+      const FAILED_TO_GET_CONTROLLER_ERROR_LOG: string = 'Failed to get controller error log.';
+      controllerModel.errorLog = [FAILED_TO_GET_CONTROLLER_ERROR_LOG];
+
+      const loginRes = await this.checkIpConnectivity(controllerModel, undefined, undefined, 20000) //Class: http.IncomingMessage
+      if (loginRes.statusCode == 200) {
+
+        // Get Log File
+        const logFilesApiPath = this.marsApiPathService.getControllerLogSourceFile();
+        const logFilesRes = await this.getResponseByPath(controllerModel.ipAddress, loginRes.headers["mars_g_session_id"], logFilesApiPath);
+        const logFilesData = JSON.parse(logFilesRes.toString());
+        fileSource = logFilesData.sources[0] || '';
+
+        if(fileSource != '') {
+          // Get Log Data
+          const logApiPath = this.marsApiPathService.getControllerLog(startTime, logCount, matchString, fileSource);
+          const logRes = await this.getResponseByPath(controllerModel.ipAddress, loginRes.headers["mars_g_session_id"], logApiPath);
+          const logData = JSON.parse(logRes.toString());
+          if (logData.logs.length >= 0) {
+            controllerModel.errorLog = logData.logs;
+          }
+        }
+
+      } else {
+        console.log(
+          `> Login Controller: ${controllerModel.controllerName} >> NOT 200 Response\n` +
+          `> IP: ${controllerModel.ipAddress}, LoginAcc: ${controllerModel.loginAccount}, LoginPwd: ${decrypt(controllerModel.loginPassword)}\n` +
+          `> Response Code: ${loginRes.statusCode}\n`
+        );
+      }
+    } catch (err) {
+      console.log(
+        `> Login Controller: ${controllerModel.controllerName} >> ERROR\n` +
+        `> IP: ${controllerModel.ipAddress}, LoginAcc: ${controllerModel.loginAccount}, LoginPwd: ${decrypt(controllerModel.loginPassword)}\n` +
+        `> ${err}\n`
+      );
+    }
+    delete controllerModel.description;
+    return controllerModel;
+  }
+
   getResponseByPath(ip: string, token: string, path: string, timeout: number = 3000
   ): Promise<any> {
     return new Promise ((resolve, reject) => {
