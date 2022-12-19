@@ -170,7 +170,7 @@ export class MarsConnectorService {
     const matchString: string ='error';
     let fileSource: string = '';
     try {
-      const FAILED_TO_GET_CONTROLLER_ERROR_LOG: string = 'Failed to get controller error log.';
+      const FAILED_TO_GET_CONTROLLER_ERROR_LOG: string = 'Failed to get controller ERROR log.';
       controllerModel.errorLog = [FAILED_TO_GET_CONTROLLER_ERROR_LOG];
 
       const loginRes = await this.checkIpConnectivity(controllerModel, undefined, undefined, 20000) //Class: http.IncomingMessage
@@ -188,7 +188,12 @@ export class MarsConnectorService {
           const logRes = await this.getResponseByPath(controllerModel.ipAddress, loginRes.headers["mars_g_session_id"], logApiPath);
           const logData = JSON.parse(logRes.toString());
           if (logData.logs.length >= 0) {
-            controllerModel.errorLog = logData.logs;
+            logData.logs.forEach((log: string, index: number) => {
+              let _log = log.replace('<em>', '');
+              _log = _log.replace('</em>', '');
+              logData.logs[index] = _log;
+            })
+            controllerModel.errorLog = logData.logs.filter((log: string) => { return log.includes('ERROR') });
           }
         }
 
