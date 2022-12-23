@@ -1,0 +1,3 @@
+# ignore all files in public but gitignore
+*
+!.gitignore
