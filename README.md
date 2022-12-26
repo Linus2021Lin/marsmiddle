@@ -3,6 +3,10 @@
 This application is generated using [LoopBack 4 CLI](https://loopback.io/doc/en/lb4/Command-line-interface.html) with the
 [initial project layout](https://loopback.io/doc/en/lb4/Loopback-application-layout.html).
 
+#web
+This web code is from https://github.com/nocsysmars/marsmiddle_web.git
+Default account and password is admin/admin
+
 ## Install dependencies
 
 By default, dependencies were installed when this application was generated.
