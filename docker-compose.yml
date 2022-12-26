@@ -1,0 +1,21 @@
+version: '2.1'
+
+services: 
+
+  marsmiddle:
+    image: marsmiddle:latest
+    build: .
+    privileged: true
+    #restart: always
+    container_name: marsmiddle
+    #ports:
+    #  - "4000:3000"
+    volumes:
+      - ./database:/home/node/app/database
+      - ./public:/home/node/app/public
+    network_mode: host
+    logging:
+        driver: "json-file"
+        options:
+           max-size: "10m"
+           max-file: "2"
