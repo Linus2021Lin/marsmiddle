@@ -16,320 +16,393 @@ import {
   del,
   requestBody,
   response,
-  HttpErrors
 } from '@loopback/rest';
-import {Marsmodel} from '../models';
-import {MarsmodelRepository} from '../repositories';
-const { encrypt, decrypt } = require('./crypto');
-const isIp = require('is-ip');
-const http = require('http');
-var querystring = require('querystring');
+import {authenticate} from '@loopback/authentication';
+import {inject} from '@loopback/core';
+import {Site, Controller} from '../models';
+import {SiteRepository} from '../repositories';
+import {RegexpService} from '../tools/regexp/regexp';
+import {CustomHttpError} from '../tools/customError/customHttpError';
+import {MarsConnectorService} from '../services/mars-connector/mars-connector';
 
-class CustomHttpError extends Error {
-  statusCode: number
-
-  constructor(status: number, message: string) {
-    super(message)
-    this.statusCode = status
-  }
-}
-function checkIPconnectivity(marsmodel:Marsmodel, password?: String) {
-       return new Promise ((resolve, reject) => {
-           let pass = typeof password != 'undefined' ? password: marsmodel.loginpwd;
-           let req = http.request({'host': marsmodel.ip,
-              'port': 80,
-              'path':'/mars/useraccount/v1/login',
-              'method': 'POST',
-              'timeout': 3000,
-              'headers': {'Content-Type': 'application/json', 'Accept': 'application/json'}
-              });
-           req.on('response', (res:any) => {
-               resolve(res);
-           });
-           req.on('error', (err:any) => {
-               reject(err);
-           });
-           req.on('timeout', () => {
-               req.destroy();
-           });
-           req.write(JSON.stringify({user_name: marsmodel.loginacc, password: pass}));
-           req.end();
-      });
-}
-
-function IntTwoChars(i:number) {
-    return (`0${i}`).slice(-2);
-}
-
-function gertCurrentTimestamp(plus: number): String {
-    let ts = Date.now() + plus*1000; //plus convert to seconds
-    let date_ob = new Date(ts);
-    let date = IntTwoChars(date_ob.getDate());
-    let month = IntTwoChars(date_ob.getMonth() + 1);
-    let year = date_ob.getFullYear();
-    let hours = IntTwoChars(date_ob.getHours());
-    let minutes = IntTwoChars(date_ob.getMinutes());
-    let seconds = IntTwoChars(date_ob.getSeconds());
-    // prints date & time in 2022-07-25T08:19:00Z
-    let dateDisply = year + "-" + month + "-" + date + "T" + hours + ":" + minutes + ":" + seconds + "Z";
-    //console.log(dateDisply);
-    return dateDisply;
-}
-
-async function getCpuRam(marsmodel: Marsmodel) {
-    try {
-        marsmodel.status = false;
-        marsmodel.cpuIdle = 0;
-        marsmodel.ramUsage = 0;
-        //decode apssword
-        let loginpwd = decrypt(marsmodel.loginpwd);
-        let res:any = await checkIPconnectivity(marsmodel, loginpwd); //Class: http.IncomingMessage
-        if (res.statusCode == 200) {
-           marsmodel.status = true;
-           let resCpu:any = await getPath(marsmodel.ip, res.headers["mars_g_session_id"] ,'/mars/analyzer/v1/timerangebar_all/ctrl/cpu/' + gertCurrentTimestamp(-60) + '\/' + gertCurrentTimestamp(0) + '/30');
-           let cpu:any = JSON.parse(resCpu.toString());
-           if (cpu.cpu.length != 0) {
-               //console.log(cpu.cpu[0].resources);
-               if(cpu.cpu[0].resources.length != 0) {
-                   //console.log("result: " + cpu.cpu[0].resources[0].idle_percent);
-                   marsmodel.cpuIdle = cpu.cpu[0].resources[0].idle_percent;
-               } else {
-                   marsmodel.cpuIdle = 0;
-               }
-           } else {
-               marsmodel.cpuIdle = 0;
-           }
-
-           let resRam:any = await getPath(marsmodel.ip, res.headers["mars_g_session_id"] ,'/mars/analyzer/v1/timerangebar_all/ctrl/memory/' + gertCurrentTimestamp(-60) + '\/' + gertCurrentTimestamp(0) + '/30');
-           let mem:any = JSON.parse(resRam.toString());
-           if (mem.memory.length != 0) {
-               //console.log(mem.memory[0].resources);
-               if(mem.memory[0].resources.length != 0) {
-                   //console.log("result: " + mem.memory[0].resources[0].used_percent);
-                   marsmodel.ramUsage = mem.memory[0].resources[0].used_percent;
-               } else {
-                   marsmodel.ramUsage = 0;
-               }
-           } else {
-               marsmodel.ramUsage = 0;
-           }
-        }
-    } catch (err) {
-        console.log("getCpuRam error name:" + marsmodel.name +", IP:" + marsmodel.ip + ", loginacc: " + marsmodel.loginacc + ", loginpwd: " +marsmodel.loginpwd + ", status:"+err);
+export function getSiteModelResSchemaRef() {
+  let schemaRef = getModelSchemaRef(Site, {
+                                            includeRelations: true,
+                                            exclude: ['siteId']
+                                          }
+                                    );
+  const excludeControllerProperties: (keyof Controller)[] = [
+    'siteName', 'controllerId', 'loginPassword', 'errorLog'
+  ];
+  excludeControllerProperties.forEach((key) => {
+    if (schemaRef.definitions.ControllerExcluding_siteId_WithRelations.properties){
+      delete schemaRef.definitions.ControllerExcluding_siteId_WithRelations.properties[key];
     }
-    return marsmodel;
-}
-function getPath(ip: String, token: String, path:String) {
-       return new Promise ((resolve, reject) => {
-           let req = http.request({'host': ip,
-              'port': 8181,
-              'path': path,
-              'method': 'GET',
-              'timeout': 3000,
-              'headers': {'Cookie': 'marsGSessionId=' + token }
-              }, (res:any) => {
-                    if (res.statusCode >= 200 || res.statusCode < 300) {
-                        res.on('data', (data:any) => {
-                           //console.log(JSON.parse(data));
-                           try {
-                               resolve(data);
-                           } catch(e) {
-                               reject(e);
-                           }
-                        });
-                    }
-              });
-           req.on('error', (err:any) => {
-               reject(err);
-           });
-           req.on('timeout', () => {
-               req.destroy();
-           });
-           req.end();
-      });
+  })
+  return schemaRef;
 }
 
+export function getErrorLogOfControllersOfAllSitesModelResSchemaRef() {
+  let schemaRef = getModelSchemaRef(Site, {
+                                            includeRelations: true,
+                                            exclude: ['siteId', 'siteDescription']
+                                          }
+                                    );
+  const excludeControllerProperties: (keyof Controller)[] = [
+    'siteName', 'controllerId', 'description', 'loginPassword', 'loginStatus', 'cpuIdle', 'ramUsage', 'deviceCounts', 'availableDeviceCounts'
+  ];
+  excludeControllerProperties.forEach((key) => {
+    if (schemaRef.definitions['ControllerExcluding_siteId-siteDescription_WithRelations'].properties){
+      delete schemaRef.definitions['ControllerExcluding_siteId-siteDescription_WithRelations'].properties[key];
+    }
+  })
+  return schemaRef;
+}
 
-export class SiteController {
+export class SitesController {
   constructor(
-    @repository(MarsmodelRepository)
-    public marsmodelRepository : MarsmodelRepository,
+    @repository(SiteRepository)
+    public siteRepository : SiteRepository,
+    @inject('marsConnectorService')
+    private marsConnectorService: MarsConnectorService,
+    @inject('regexpService')
+    private regexpService: RegexpService
   ) {}
 
-  /*
-  async addOtherControllersInSameSite (marsmodel: Marsmodel) {
-    try {
-        let res:any = await checkIPconnectivity(marsmodel);
-        if (res.statusCode == 200) {
-            let resCluster:any = await getPath(marsmodel.ip, res.headers["mars_g_session_id"], '/mars/v1/cluster');
-            let cluster:any = JSON.parse(resCluster.toString());
-               for (const i in cluster.nodes) {
-                   if(cluster.nodes[i].ip == marsmodel.ip) {
-                       continue;
-                   }
-                   let newCtrl = new Marsmodel(marsmodel);
-                   newCtrl.name = marsmodel.name +"_" + cluster.nodes[i].ip
-                   newCtrl.ip = cluster.nodes[i].ip;
-                   this.marsmodelRepository.create(newCtrl);
-               }
-            }
-        }
-    } catch (err) {
-        console.log("addOtherControllersInSameSite error name:" + marsmodel.name +", IP:" + marsmodel.ip + ", loginacc: " + marsmodel.loginacc + ", loginpwd: " +marsmodel.loginpwd + ", status:"+err);
+  async getSiteId(siteName: string): Promise<string> {
+    let siteId: string = '';
+    const filter: Filter<Site> = {
+      "where": {"siteName": siteName}
     }
+    await this.siteRepository.findOne(filter)
+    .then( (res) => {
+      if (res) {
+        siteId = res.siteId;
+      } else {
+        throw new CustomHttpError(404, 'SITE_NOT_FOUND');
+      }
+    })
+    return siteId;
   }
-  */
 
-  @post('/marsmiddle')
+  @authenticate('admin-jwt')
+  @post('/sites')
   @response(200, {
-    description: 'Marsmodel model instance',
-    content: {'application/json': {schema: getModelSchemaRef(Marsmodel)}},
+    description: 'Site model instance',
+    content: {
+      'application/json': {
+        schema: getModelSchemaRef(Site, {
+          exclude: ['siteId']
+        })
+      }
+    },
   })
   async create(
     @requestBody({
       content: {
         'application/json': {
-          schema: getModelSchemaRef(Marsmodel, {
-            title: 'New Mars Controller',
+          schema: getModelSchemaRef(Site, {
+            title: 'NewSite',
+            exclude: ['siteId'],
+            optional: ['siteDescription']
           }),
         },
       },
     })
-    marsmodel: Marsmodel,
-  ): Promise<Marsmodel> {
-
-    if (!isIp.v4(marsmodel.ip) && !isIp.v6(marsmodel.ip)) {
-       throw new CustomHttpError(400, 'Invalid IP address.');
+    site: Site,
+  ): Promise<Site> {
+    // Exception: Site name format
+    const siteNameValidationPattern = this.regexpService.get('name_en_15');
+    if (!siteNameValidationPattern.test(site.siteName)) {
+      throw new CustomHttpError(422, 'SITENAME_RESTRICTIONS');
     }
-
-    //this.addOtherControllersInSameSite(marsmodel); If this cluster's other controller using local IP, we may not connect to it. Let user add all site's controller will be better.
-
-    marsmodel.loginpwd = encrypt(marsmodel.loginpwd);
-    return this.marsmodelRepository.create(marsmodel);
+    // Check if site name has been used before, it should be unique
+    const filter: Filter<Site> = {
+      "where": {"siteName":site.siteName}
+    }
+    await this.siteRepository.find(filter)
+    .then( (res) => {
+      if (res.length > 0) {
+        throw new CustomHttpError(409, 'SITENAME_ALREADY_EXISTS');
+      }
+    })
+    return this.siteRepository.create(site);
   }
 
-  @get('/marsmiddle/count')
+  @authenticate('jwt')
+  @get('/sites')
   @response(200, {
-    description: 'Marsmodel model count',
-    content: {'application/json': {schema: CountSchema}},
-  })
-  async count(
-    @param.where(Marsmodel) where?: Where<Marsmodel>,
-  ): Promise<Count> {
-    return this.marsmodelRepository.count(where);
-  }
-
-  @get('/marsmiddle')
-  @response(200, {
-    description: 'Array of Marsmodel model instances',
+    description: 'Array of Site model instances',
     content: {
       'application/json': {
         schema: {
           type: 'array',
-          items: getModelSchemaRef(Marsmodel, {includeRelations: true}),
+          items: getSiteModelResSchemaRef(),
         },
       },
     },
   })
   async find(
-    @param.filter(Marsmodel) filter?: Filter<Marsmodel>,
-  ): Promise<Marsmodel[]> {
-    let marsmodel: Marsmodel[] = await this.marsmodelRepository.find(filter);
-
-    for (const i in marsmodel) {
-        marsmodel[i] = await getCpuRam(marsmodel[i]);
+    // @param.filter(Site) filter?: Filter<Site>,
+  ): Promise<Site[]> {
+    const filter = {
+      "include": ['controllers']
+    };
+    // Update Controller Cluster Nodes
+    const beforeUpdatedSitesArray = await this.siteRepository.find(filter);
+    beforeUpdatedSitesArray.forEach( (site) => {
+      if (!site.controllers) { site['controllers'] = []; }
+    })
+    let siteLevelPromiseArr = [];
+    for (let siteIndex = 0; siteIndex < beforeUpdatedSitesArray.length; siteIndex++) {
+      let  crtlLevelPromiseArr = [];
+      for (let ctrlIndex = 0; ctrlIndex < beforeUpdatedSitesArray[siteIndex].controllers.length; ctrlIndex++) {
+        crtlLevelPromiseArr.push(
+          this.marsConnectorService.updateControllerClusterNodes(beforeUpdatedSitesArray[siteIndex].controllers[ctrlIndex])
+        );
+      }
+      let ctrlPromiseAll = Promise.all(crtlLevelPromiseArr);
+      siteLevelPromiseArr.push(ctrlPromiseAll);
     }
+    await Promise.all(siteLevelPromiseArr);
 
-    return marsmodel;
+    // Get Sites Data
+    const sites = this.siteRepository.find(filter)
+                      .then(async (siteArr) => {
+                              siteArr.forEach( (site) => {
+                                if (!site.controllers) { site['controllers'] = []; }
+                              })
+                              let siteLevelPromiseArr = [];
+                              for (let siteIndex = 0; siteIndex < siteArr.length; siteIndex++) {
+                                // set value of loginStatus, cpuIdle, ramUsage, deviceCounts, availableDeviceCounts for each controllers of sites
+                                let  crtlLevelPromiseArr = [];
+                                for (let ctrlIndex = 0; ctrlIndex < siteArr[siteIndex].controllers.length; ctrlIndex++) {
+                                  crtlLevelPromiseArr.push(
+                                    this.marsConnectorService.getCpuRamDevicesData(siteArr[siteIndex].controllers[ctrlIndex])
+                                  );
+                                }
+                                let ctrlPromiseAll = Promise.all(crtlLevelPromiseArr).then((ctrlResArr) => {
+                                  for (let i = 0; i < siteArr[siteIndex].controllers.length; i++) {
+                                    siteArr[siteIndex].controllers[i] = ctrlResArr[i];
+                                  }
+                                })
+                                siteLevelPromiseArr.push(ctrlPromiseAll);
+                              }
+                              await Promise.all(siteLevelPromiseArr)
+                              return siteArr;
+                      })
+    return sites;
   }
 
-  @get('/marsmiddle/{id}')
+  @authenticate('jwt')
+  @get('/sites/{siteName}')
   @response(200, {
-    description: 'Marsmodel model instance',
+    description: 'Site model instance',
     content: {
       'application/json': {
-        schema: getModelSchemaRef(Marsmodel, {includeRelations: true}),
+        schema: getSiteModelResSchemaRef(),
       },
     },
   })
   async findById(
-    @param.path.string('id') id: string,
-    @param.filter(Marsmodel, {exclude: 'where'}) filter?: FilterExcludingWhere<Marsmodel>
-  ): Promise<Marsmodel> {
-    let marsmodel: Marsmodel = await this.marsmodelRepository.findById(id, filter);
-    return getCpuRam(marsmodel);
-  }
-
-  @patch('/marsmiddle')
-  @response(200, {
-    description: 'Marsmodel PATCH success count',
-    content: {'application/json': {schema: CountSchema}},
-  })
-  async updateAll(
-    @requestBody({
-      content: {
-        'application/json': {
-          schema: getModelSchemaRef(Marsmodel, {partial: true}),
-        },
-      },
-    })
-    marsmodel: Marsmodel,
-    @param.where(Marsmodel) where?: Where<Marsmodel>,
-  ): Promise<Count> {
-
-    if (!isIp.v4(marsmodel.ip) && !isIp.v6(marsmodel.ip)) {
-       throw new CustomHttpError(400, 'Invalid IP address.');
+    @param.path.string('siteName') siteName: string,
+    // @param.filter(Site, {exclude: 'where'}) filter?: FilterExcludingWhere<Site>
+  ): Promise<Site> {
+    // Get ID of selected site
+    const siteId = await this.getSiteId(siteName);
+    const filter = {
+      "include": ['controllers']
+    };
+    // Update Controller Cluster Nodes
+    const beforeUpdatedSite = await this.siteRepository.findById(siteId, filter);
+    if (!beforeUpdatedSite.controllers) { beforeUpdatedSite['controllers'] = []; }
+    let promiseArr = [];
+    for (let i = 0; i < beforeUpdatedSite.controllers.length; i++) {
+      promiseArr.push(this.marsConnectorService.updateControllerClusterNodes(beforeUpdatedSite.controllers[i]));
     }
-
-    marsmodel.loginpwd = encrypt(marsmodel.loginpwd);
-    return this.marsmodelRepository.updateAll(marsmodel, where);
+    await Promise.all(promiseArr);
+    
+    // Get Site Data
+    const response = this.siteRepository.findById(siteId, filter)
+                      .then(async (res) => {
+                        if (!res.controllers) { res['controllers'] = []; }
+                        // set value of loginStatus, cpuIdle, ramUsage, deviceCounts, availableDeviceCounts
+                        let  promiseArr = [];
+                        for (let i = 0; i < res.controllers.length; i++) {
+                          promiseArr.push(this.marsConnectorService.getCpuRamDevicesData(res.controllers[i]));
+                        }
+                        await Promise.all(promiseArr).then((resArr) => {
+                          for (let i = 0; i < res.controllers.length; i++) {
+                            res.controllers[i] = resArr[i];
+                          }
+                        })
+                        return res;
+                      })
+    return response;
   }
 
-  @patch('/marsmiddle/{id}')
-  @response(204, {
-    description: 'Marsmodel PATCH success',
+  @authenticate('admin-jwt')
+  @put('/sites/{siteName}', {
+    responses: {
+      '204': { description: 'Site PUT success' }
+    },
   })
   async updateById(
-    @param.path.string('id') id: string,
+    @param.path.string('siteName') siteName: string,
     @requestBody({
       content: {
         'application/json': {
-          schema: getModelSchemaRef(Marsmodel, {partial: true}),
+          schema: getModelSchemaRef(Site, {
+            partial: true,
+            exclude: ["siteId"]
+          }),
         },
       },
     })
-    marsmodel: Marsmodel,
+    site: Site,
   ): Promise<void> {
-    if (!isIp.v4(marsmodel.ip) && !isIp.v6(marsmodel.ip)) {
-       throw new CustomHttpError(400, 'Invalid IP address.');
+    // Exception: Site name format
+    const siteNameValidationPattern = this.regexpService.get('name_en_15');
+    if (!siteNameValidationPattern.test(site.siteName)) {
+      throw new CustomHttpError(422, 'SITENAME_RESTRICTIONS');
     }
 
-    marsmodel.loginpwd = encrypt(marsmodel.loginpwd);
-    await this.marsmodelRepository.updateById(id, marsmodel);
-  }
-
-  @put('/marsmiddle/{id}')
-  @response(204, {
-    description: 'Marsmodel PUT success',
-  })
-  async replaceById(
-    @param.path.string('id') id: string,
-    @requestBody() marsmodel: Marsmodel,
-  ): Promise<void> {
-
-    if (!isIp.v4(marsmodel.ip) && !isIp.v6(marsmodel.ip)) {
-       throw new CustomHttpError(400, 'Invalid IP address.');
+    // Get ID of selected site
+    const siteId = await this.getSiteId(siteName);
+    // Check if site name has been used before, it should be unique
+    if (site.siteName) {
+      const _filter: Filter<Site> = {
+        "where": {"siteName":site.siteName}
+      }
+      await this.siteRepository.find(_filter)
+      .then( (res) => {
+        if (res.length > 0) {
+          throw new CustomHttpError(409, 'SITENAME_ALREADY_EXISTS');
+        }
+      })
     }
-
-    marsmodel.loginpwd = encrypt(marsmodel.loginpwd);
-    await this.marsmodelRepository.replaceById(id, marsmodel);
+    // In loopback4, Update: apply to partial fields(PATCH), Replace: apply to all fields(PUT)
+    await this.siteRepository.updateById(siteId, site);
   }
 
-  @del('/marsmiddle/{id}')
-  @response(204, {
-    description: 'Marsmodel DELETE success',
+  @authenticate('admin-jwt')
+  @del('/sites/{siteName}', {
+    responses: {
+      '204': { description: 'Site DELETE success' }
+    },
   })
-  async deleteById(@param.path.string('id') id: string): Promise<void> {
-    await this.marsmodelRepository.deleteById(id);
+  async deleteById(@param.path.string('siteName') siteName: string): Promise<void> {
+    // Get ID of selected site
+    const siteId = await this.getSiteId(siteName);
+    // Delete all controllers of the Site
+    const _filter: Filter<Controller> = {
+      "where": {"siteId": siteId}
+    }
+    await this.siteRepository.controllers(siteId).delete(_filter.where);
+    // Delete the Site
+    await this.siteRepository.deleteById(siteId);
   }
+
+  // @authenticate('jwt')
+  // @get('/sites/count')
+  // @response(200, {
+  //   description: 'Site model count',
+  //   content: {'application/json': {schema: CountSchema}},
+  // })
+  // async count(
+  //   // @param.where(Site) where?: Where<Site>,
+  // ): Promise<Count> {
+  //   // return this.siteRepository.count(where);
+  //   return this.siteRepository.count();
+  // }
+
+  @authenticate('jwt')
+  @get('/sites/errorLog')
+  @response(200, {
+    description: 'Array of Site model with error log instances',
+    content: {
+      'application/json': {
+        schema: {
+          type: 'array',
+          items: getErrorLogOfControllersOfAllSitesModelResSchemaRef(),
+        },
+      },
+    },
+  })
+  async getErrorLogOfControllersOfAllSites(
+    @param.query.number('hour', {required: true, description: 'Get log from the last hours'}) lastHours: number,
+    @param.query.number('count', {required: true, description: 'History entry count of log'}) logCount: number
+  ): Promise<Site[]> {
+    const filter = {
+      "include": ['controllers']
+    };
+    // Get Log of Controllers of all Sites Data
+    const sites = this.siteRepository.find(filter)
+                      .then(async (siteArr) => {
+                              siteArr.forEach( (site) => {
+                                if (!site.controllers) { site['controllers'] = []; }
+                              })
+                              let siteLevelPromiseArr = [];
+                              for (let siteIndex = 0; siteIndex < siteArr.length; siteIndex++) {
+                                // set error log for each controllers of sites
+                                let  crtlLevelPromiseArr = [];
+                                for (let ctrlIndex = 0; ctrlIndex < siteArr[siteIndex].controllers.length; ctrlIndex++) {
+                                  crtlLevelPromiseArr.push(
+                                    this.marsConnectorService.getControllerLog(siteArr[siteIndex].controllers[ctrlIndex], lastHours, logCount)
+                                  );
+                                }
+                                let ctrlPromiseAll = Promise.all(crtlLevelPromiseArr).then((ctrlResArr) => {
+                                  for (let i = 0; i < siteArr[siteIndex].controllers.length; i++) {
+                                    siteArr[siteIndex].controllers[i] = ctrlResArr[i];
+                                    delete siteArr[siteIndex].siteDescription;
+                                  }
+                                })
+                                siteLevelPromiseArr.push(ctrlPromiseAll);
+                              }
+                              await Promise.all(siteLevelPromiseArr)
+                              return siteArr;
+                      })
+    return sites;
+  }
+
+  @authenticate('jwt')
+  @get('/sites/{siteName}/errorLog')
+  @response(200, {
+    description: 'Site model with error log instances',
+    content: {
+      'application/json': {
+        schema: getErrorLogOfControllersOfAllSitesModelResSchemaRef(),
+      },
+    },
+  })
+  async getErrorLogOfControllersOfSpecifiedSite(
+    @param.path.string('siteName') siteName: string,
+    @param.query.number('hour', {required: true, description: 'Get log from the last hours'}) lastHours: number,
+    @param.query.number('count', {required: true, description: 'History entry count of log'}) logCount: number,
+  ): Promise<Site> {
+    // Get ID of selected site
+    const siteId = await this.getSiteId(siteName);
+    const filter = {
+      "include": ['controllers']
+    };
+    // Get Log of Controllers of Site Data
+    const response = this.siteRepository.findById(siteId, filter)
+                      .then(async (res) => {
+                        if (!res.controllers) { res['controllers'] = []; }
+                        // set error log for each controllers of sites
+                        let  promiseArr = [];
+                        for (let i = 0; i < res.controllers.length; i++) {
+                          promiseArr.push(this.marsConnectorService.getControllerLog(res.controllers[i], lastHours, logCount));
+                        }
+                        await Promise.all(promiseArr).then((resArr) => {
+                          for (let i = 0; i < res.controllers.length; i++) {
+                            res.controllers[i] = resArr[i];
+                            delete res.siteDescription;
+                          }
+                        })
+                        return res;
+                      })
+    return response;
+  }
+  
 }

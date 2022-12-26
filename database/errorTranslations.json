@@ -1,0 +1,118 @@
+{
+  "FILE_NOT_FOUND": {
+    "zh": "未找到文件",
+    "en": "File not found."
+  },
+  
+
+  "USERNAME_RESTRICTIONS": {
+    "zh": "名称仅包含字母数字_-，长度5-20个字符",
+    "en": "Username contains 5-20 characters, including alphabet, number, ' _ ' and ' - '"
+  },
+  "PASSWORD_RESTRICTIONS": {
+    "zh": "密码限制：最少8个字符，至少包含一个大写字母，一个小写字母，一个数字和一个特殊字符",
+    "en": "Password Restrictions: Minimum 8 characters, at least one uppercase letter, one lowercase letter, one number and one special character"
+  },
+  "INVALID_USERNAME": {
+    "zh": "不合法的用戶名称",
+    "en": "Invalid Username."
+  },
+  "INVALID_ROLE": {
+    "zh": "不合法的用戶身份(Role)",
+    "en": "Invalid Role."
+  },
+  "INVALID_USERNAME_OR_PASSWORD": {
+    "zh": "不合法的用戶名称或密码",
+    "en": "Invalid Username or Password."
+  },
+  "USERNAME_ALREADY_EXISTS": {
+    "zh": "用戶名称已存在",
+    "en": "Username already exists."
+  },
+  "LOGOUT_FAILED": {
+    "zh": "登出失敗",
+    "en": "Logout failed."
+  },
+  "ONE_ADMIN_REQUIRED": {
+    "zh": "至少需要一名管理员",
+    "en": "At least one administrator is required."
+  },
+
+
+  "SITENAME_RESTRICTIONS": {
+    "zh": "Site 名称仅包含字母数字_-，长度小於15个字符",
+    "en": "Site name should not exceed 15 characters, including alphabet, number, ' _ ' and ' - '"
+  },
+  "CONTROLLERNAME_RESTRICTIONS": {
+    "zh": "控制器名称仅包含字母数字_-，长度小於15个字符",
+    "en": "Controller name should not exceed 15 characters, including alphabet, number, ' _ ' and ' - '"
+  },
+  "INVALID_SITENAME": {
+    "zh": "不合法的 Site 名称",
+    "en": "Invalid Site Name."
+  },
+  "INVALID_CONTROLLERNAME": {
+    "zh": "不合法的 控制器 名称",
+    "en": "Invalid Controller Name."
+  },
+  "INVALID_IP_ADDRESS": {
+    "zh": "不合法的 IP 位址",
+    "en": "Invalid IP Address."
+  },
+  "SITE_NOT_FOUND": {
+    "zh": "未找到 Site",
+    "en": "Site not found."
+  },
+  "CONTROLLER_NOT_FOUND": {
+    "zh": "未找到 控制器",
+    "en": "Controller not found."
+  },
+  "SITENAME_ALREADY_EXISTS": {
+    "zh": "Site 名称已存在",
+    "en": "Site name already exists."
+  },
+  "CONTROLLER_ALREADY_EXISTS": {
+    "zh": "控制器名称已存在或已设定于其它 Site 中",
+    "en": "Controller Name already exists or has been set in other Site."
+  },
+  "IP_ADDRESS_ALREADY_EXISTS": {
+    "zh": "IP 位址已存在或已设定于其它 Site 中",
+    "en": "IP Address already exists or has been set in other Site."
+  },
+
+
+  "INVALID_TOKEN": {
+    "zh": "不合法的令牌 Token",
+    "en": "Invalid Token."
+  },
+  "TOKEN_NOT_FOUND": {
+    "zh": "未找到令牌 Token",
+    "en": "Token not found."
+  },
+  "GENERATING_TOKEN_ERROR": {
+    "zh": "产生令牌 Token 错误",
+    "en": "Generating token error."
+  },
+  "ENCODING_TOKEN_ERROR": {
+    "zh": "编码令牌 Token 错误",
+    "en": "Encoding token error."
+  },
+
+
+  "AUTH_HEADER_NOT_FOUND": {
+    "zh": "未找到 Authorization header",
+    "en": "Authorization header not found."
+  },
+  "AUTH_HEADER_NOT_BEARER": {
+    "zh": "Authorization header 不是 “Bearer” 类型",
+    "en": "Authorization header is not of type 'Bearer'."
+  },
+  "AUTH_HEADER_INVALID_PATTERN": {
+    "zh": "Authorization header 必须遵循以下模式：'Bearer xx.yy.zz' 其中 xx.yy.zz 是有效的 JWT 令牌",
+    "en": "Authorization header value must follow the pattern: 'Bearer xx.yy.zz' where xx.yy.zz is a valid JWT token."
+  },
+  "INVALID_OR_EXPIRED_TOKEN": {
+    "zh": "JWT 令牌已过期或无效",
+    "en": "JWT token is invalid or expired."
+  }
+}
