@@ -2,7 +2,7 @@ BRANCH='main'
 
 echo "==> 1. Download mars middle web code."
 rm -rf marsmiddle_web
-git clone --branch $BRANCH https://github.com/Linus2021Lin/marsmiddle_web
+git clone --branch $BRANCH https://github.com/nocsysmars/marsmiddle_web.git
 if [ $? -ne 0 ]; then
  echo '==== Download Fail ===='
  exit $?
